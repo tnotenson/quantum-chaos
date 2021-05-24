@@ -8,6 +8,7 @@ Created on Sun May 23 18:59:19 2021
 from qutip import *
 import numpy as np
 import matplotlib.pyplot as plt
+import time
 
 sx=sigmax()
 sy=sigmay()
@@ -36,10 +37,13 @@ def ciclic(l):
 # import numpy.linalg as lalg
 
 #1) elijo numero de spines
-ns = [6,7,8,9]
+ns = [14,15]
 
 ecos = []
 
+times = np.linspace(0.0, 1000.0, 2000)
+
+start_time0 = time.time()
 for itera, n in enumerate(ns):
     #2) armo hamiltoniano deseado (con simetria ciclica)
     # X=sum([tensor([qeye(2) if j!=k else sx for j in range(n)]) for k in range(n)])
@@ -67,7 +71,7 @@ for itera, n in enumerate(ns):
     Z=sum([tensor([qeye(2) if j!=k else sz for j in range(n)]) for k in range(n)])
     h = 0.4
     H0 = XX + h*Z
-    print("[H,S]=",commutator(H0,S).norm())
+    # print("[H,S]=",commutator(H0,S).norm())
     
     # Calculo las energias y sus correspondientes autoestados
     e0, evec0 = H0.eigenstates()
@@ -83,8 +87,8 @@ for itera, n in enumerate(ns):
     paridad = tensor([sz for j in range(n)])
     
     # Muestro que ya no tiene simetría cíclica pero sí paridad
-    print("[H,S]=",commutator(H1,S).norm())
-    print(r"[H,Pi^z]=",commutator(H1,paridad).norm())
+    # print("[H,S]=",commutator(H1,S).norm())
+    # print(r"[H,Pi^z]=",commutator(H1,paridad).norm())
     
     # Calculo las energias y sus correspondientes autoestados
     e1, evec1 = H1.eigenstates()
@@ -93,8 +97,6 @@ for itera, n in enumerate(ns):
     
     # Calculo el eco y lo ploteo ############################################### 
     psi0 = evec0[0]
-    
-    times = np.linspace(0.0, 1000.0, 2000)
     
     result = mesolve(H1, psi0, times, [], [])
     states = result.states
@@ -116,8 +118,22 @@ for itera, n in enumerate(ns):
     plt.title('⟨n|\psi_0⟩$ in Ising with tranverse field PBC N = %i'%n)
     plt.plot(np.arange(dbase), overlaps, '.', label=r'$⟨n|\psi_0⟩$')
     plt.legend()
-    
-np.savez('LE_N6,7,8,9.npz', ecos=ecos)
+    print("N = %i--- %s seconds ---" % (n, time.time() - start_time0))
+print("Total --- %s seconds ---" % (time.time() - start_time0))
+np.savez('LE_N%i,%i.npz'%tuple(ns), ecos=ecos)
+#%% Comparación
+ecos = np.load('LE_N%i,%i.npz'%tuple(ns))['ecos']
+
+colores = ['r-', 'b-']
+
+plt.figure()
+plt.title('Loschmidt echo in Ising with tranverse field PBC N = %i and N = %i'%tuple(ns))
+for ind, [num, prob] in enumerate(zip(ns, ecos)):    
+    plt.plot(times, prob, colores[ind], label=r'$\mathtt{L}_{%i}(t)$'%num)
+plt.legend()
+plt.savefig('Comparacion_LE_N%i,%i'%tuple(ns))
+
+
 #%% teorico para N = 2k+1 #####################################################
 # n = 5
 
