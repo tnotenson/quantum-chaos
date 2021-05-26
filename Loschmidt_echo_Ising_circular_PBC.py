@@ -37,7 +37,7 @@ def ciclic(l):
 # import numpy.linalg as lalg
 
 #1) elijo numero de spines
-ns = [14,15]
+ns = [12,13]
 
 ecos = []
 
@@ -127,7 +127,7 @@ ecos = np.load('LE_N%i,%i.npz'%tuple(ns))['ecos']
 colores = ['r-', 'b-']
 
 plt.figure()
-plt.title('Loschmidt echo in Ising with tranverse field PBC N = %i and N = %i'%tuple(ns))
+plt.title(r'Loschmidt echo in Ising with tranverse field PBC N = %i and N = %i '%tuple(ns))
 for ind, [num, prob] in enumerate(zip(ns, ecos)):    
     plt.plot(times, prob, colores[ind], label=r'$\mathtt{L}_{%i}(t)$'%num)
 plt.legend()
