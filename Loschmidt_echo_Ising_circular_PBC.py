@@ -35,9 +35,13 @@ def ciclic(l):
 
 #%% Prueba
 # import numpy.linalg as lalg
+plt.rcParams.update({
+"text.usetex": True,
+"font.family": "sans-serif",
+"font.sans-serif": ["Helvetica"]})
 
 #1) elijo numero de spines
-ns = [12,13]
+ns = [10,11]
 
 ecos = []
 
@@ -93,6 +97,9 @@ for itera, n in enumerate(ns):
     # Calculo las energias y sus correspondientes autoestados
     e1, evec1 = H1.eigenstates()
     
+    print(e0)
+    print(e1)
+    
     # Calculo el eco y lo ploteo
     
     # Calculo el eco y lo ploteo ############################################### 
@@ -115,21 +122,23 @@ for itera, n in enumerate(ns):
     overlaps = [abs((evec1[j].dag()*psi0)[0,0])**2 for j in range(dbase)]
     
     plt.figure()
-    plt.title('⟨n|\psi_0⟩$ in Ising with tranverse field PBC N = %i'%n)
-    plt.plot(np.arange(dbase), overlaps, '.', label=r'$⟨n|\psi_0⟩$')
+    plt.title(r'$|⟨n|\psi_0⟩|^2$ in Ising with tranverse field PBC N = %i'%n)
+    plt.plot(np.arange(dbase), overlaps, '.', label=r'$|⟨n|\psi_0⟩|^2$')
     plt.legend()
     print("N = %i--- %s seconds ---" % (n, time.time() - start_time0))
 print("Total --- %s seconds ---" % (time.time() - start_time0))
-np.savez('LE_N%i,%i.npz'%tuple(ns), ecos=ecos)
+# np.savez('LE_N%i,%i.npz'%tuple(ns), ecos=ecos)
 #%% Comparación
 ecos = np.load('LE_N%i,%i.npz'%tuple(ns))['ecos']
 
-colores = ['r-', 'b-']
+colores = ['g-', 'r-']
 
 plt.figure()
 plt.title(r'Loschmidt echo in Ising with tranverse field PBC N = %i and N = %i '%tuple(ns))
 for ind, [num, prob] in enumerate(zip(ns, ecos)):    
-    plt.plot(times, prob, colores[ind], label=r'$\mathtt{L}_{%i}(t)$'%num)
+    plt.plot(times, prob, colores[ind], label=r'$N = %i$'%num)
+plt.ylabel(r'$\mathcal{L}(t)$')
+plt.xlabel(r't')
 plt.legend()
 plt.savefig('Comparacion_LE_N%i,%i'%tuple(ns))
 
