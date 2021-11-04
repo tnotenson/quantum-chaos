@@ -93,6 +93,18 @@ def gaussian_state_numpy(N, n0, sigma, ket=False):
     ans = [np.exp(-(i-n0)**2/(2*sigma**2)) for i in range(-N, N)] # heff**2*
     I = np.identity(2*N)
     psi0 = sum([ans[i]*np.matrix(I[:,i]).T for i in range(0,2*N)])
+    psi0 = psi0/np.linalg.norm(psi0)
+    if ket:
+        return psi0
+    else:
+        state0 = np.outer(psi0,psi0)
+        state0 = np.matrix(state0, dtype=np.complex_)#/np.trace(state0)
+        return state0
+@jit 
+def momentum_state_numpy(N, n0, ket=False):
+    n0 += int(N/2)
+    I = np.identity(2*N)
+    psi0 = np.matrix(I[:,n0]).T
     if ket:
         psi0 = psi0/np.linalg.norm(psi0)
         return psi0
@@ -100,6 +112,7 @@ def gaussian_state_numpy(N, n0, sigma, ket=False):
         state0 = np.outer(psi0,psi0)
         state0 = np.matrix(state0/np.trace(state0), dtype=np.complex_)
         return state0
+
 
 @jit(nopython=True, parallel=True, fastmath = True)
 def Evolucion_numpy(B_t, U, Udag):
@@ -208,22 +221,21 @@ def Evolution_FFT_Tinf(time_lim, N, Ks, A, B, op = 'X', soloOTOC=False):
         flag = flag+'_soloOTOC'
         return [OTOC_Ks, flag, soloOTOC]
 
-# @jit(nopython=True, parallel=True, fastmath = True)
 def Evolution_FFT_numpy_Tinf(time_lim, N, Ks, A, B, op = 'X', soloOTOC=False):
     
     start_time = time.time() 
     
-    OTOC_Ks = np.zeros((len(Ks), time_lim))#[] # OTOC for each Ks
+    OTOC_Ks = np.zeros((len(Ks), time_lim), dtype=np.complex_)#[] # OTOC for each Ks
     if not soloOTOC:
-        O1_Ks = np.zeros((len(Ks), time_lim))#[] # O1 for each Ks
-        O2_Ks = np.zeros((len(Ks), time_lim))#[] # O2 for each Ks      
+        O1_Ks = np.zeros((len(Ks), time_lim), dtype=np.complex_)#[] # O1 for each Ks
+        O2_Ks = np.zeros((len(Ks), time_lim), dtype=np.complex_)#[] # O2 for each Ks      
     
     for j, K in tqdm(enumerate(Ks), desc='Primary loop'):
         
-        OTOC = np.zeros((time_lim))#[]
+        OTOC = np.zeros((time_lim), dtype=np.complex_)#[]
         if not soloOTOC:
-            O1s = np.zeros((time_lim))#[]
-            O2s = np.zeros((time_lim))#[]
+            O1s = np.zeros((time_lim), dtype=np.complex_)#[]
+            O2s = np.zeros((time_lim), dtype=np.complex_)#[]
         # Distinct evolution for each operator X or P
         U = UU(K, N, op)
         Udag = U.H
@@ -241,7 +253,7 @@ def Evolution_FFT_numpy_Tinf(time_lim, N, Ks, A, B, op = 'X', soloOTOC=False):
                 # average of |[B(t), A]|**2
                 C_t = C_t_commutator_numpy_Tinf(A, B_t)
                 # print(prom)
-                OTOC.append(np.abs(C_t))
+                OTOC.append(C_t)
                 
             else:
                 
@@ -250,9 +262,9 @@ def Evolution_FFT_numpy_Tinf(time_lim, N, Ks, A, B, op = 'X', soloOTOC=False):
                             
                 C_t = -2*( O1 - O2 )/N
                 
-                OTOC[i] = np.abs(C_t)#OTOC.append(np.abs(C_t.data.toarray()))
-                O1s[i] = np.abs(O1)#O1s.append(np.abs(O1.data.toarray()))
-                O2s[i] = np.abs(O2)#O2s.append(np.abs(O2.data.toarray()))
+                OTOC[i] = C_t#OTOC.append(np.abs(C_t.data.toarray()))
+                O1s[i] = O1#O1s.append(np.abs(O1.data.toarray()))
+                O2s[i] = O2#O2s.append(np.abs(O2.data.toarray()))
 
         OTOC_Ks[j,:] = OTOC#OTOC_Ks.append(OTOC)
         if not soloOTOC:
@@ -266,6 +278,7 @@ def Evolution_FFT_numpy_Tinf(time_lim, N, Ks, A, B, op = 'X', soloOTOC=False):
     else:
         flag = flag+'_soloOTOC'
         return [OTOC_Ks, flag, soloOTOC]
+    
 
 def Evolution_FFT_state(time_lim, state, N, Ks, A, B, op = 'X', ket=False, soloOTOC=False):
     
@@ -352,23 +365,22 @@ def Evolution_FFT_state(time_lim, state, N, Ks, A, B, op = 'X', ket=False, soloO
         flag = flag+'_soloOTOC'
         return [OTOC_Ks, flag, ket, soloOTOC]
     
-# @jit(nopython=True, parallel=True, fastmath = True)
 def Evolution_FFT_numpy_state(time_lim, state, N, Ks, A, B, op = 'X', ket=False, soloOTOC=False):
     
     statedag = state.H
     # start time of rutine
     start_time = time.time() 
     
-    OTOC_Ks = np.zeros((len(Ks), time_lim))#[] # OTOC for each Ks
+    OTOC_Ks = np.zeros((len(Ks), time_lim), dtype=np.complex_)#[] # OTOC for each Ks
     if not soloOTOC:
-        O1_Ks = np.zeros((len(Ks), time_lim))#[] # O1 for each Ks
-        O2_Ks = np.zeros((len(Ks), time_lim))#[] # O2 for each Ks      
+        O1_Ks = np.zeros((len(Ks), time_lim), dtype=np.complex_)#[] # O1 for each Ks
+        O2_Ks = np.zeros((len(Ks), time_lim), dtype=np.complex_)#[] # O2 for each Ks      
     
     for j, K in tqdm(enumerate(Ks), desc='Primary loop'):
-        OTOC = np.zeros((time_lim))#[]
+        OTOC = np.zeros((time_lim), dtype=np.complex_)#[]
         if not soloOTOC:
-            O1s = np.zeros((time_lim))#[]
-            O2s = np.zeros((time_lim))#[]
+            O1s = np.zeros((time_lim), dtype=np.complex_)#[]
+            O2s = np.zeros((time_lim), dtype=np.complex_)#[]
             
         # Distinct evolution for each operator X or P
         U = UU(K, N, op)
@@ -387,9 +399,9 @@ def Evolution_FFT_numpy_state(time_lim, state, N, Ks, A, B, op = 'X', ket=False,
                 
                 # print(C_t)
             
-                OTOC[i] = np.abs(C_t[0,0])#OTOC.append(np.abs(C_t.data.toarray()))
-                O1s[i] = np.abs(O1[0,0])#O1s.append(np.abs(O1.data.toarray()))
-                O2s[i] = np.abs(O2[0,0])#O2s.append(np.abs(O2.data.toarray()))
+                OTOC[i] = C_t[0,0]#OTOC.append(np.abs(C_t.data.toarray()))
+                O1s[i] = O1[0,0]#O1s.append(np.abs(O1.data.toarray()))
+                O2s[i] = O2[0,0]#O2s.append(np.abs(O2.data.toarray()))
                 
             # evolution in the Heisenberg picture             
             else:
@@ -398,7 +410,7 @@ def Evolution_FFT_numpy_state(time_lim, state, N, Ks, A, B, op = 'X', ket=False,
                 else: 
                     # FFT for efficient evolution
                     # diagonal evolution
-                    B_t = Evolucion_numpy(B_t, U, Udag)# U*B_t*U.dag()
+                    B_t = Evolucion_numpy(B_t, Udag, U)# U*B_t*U.dag()
                 
                 if soloOTOC:
                     # average of |[B(t), A]|**2
@@ -414,9 +426,9 @@ def Evolution_FFT_numpy_state(time_lim, state, N, Ks, A, B, op = 'X', ket=False,
                     
                     print(C_t)
                     
-                    OTOC[i] = np.abs(C_t)#OTOC.append(np.abs(C_t.data.toarray()))
-                    O1s[i] = np.abs(O1)#O1s.append(np.abs(O1.data.toarray()))
-                    O2s[i] = np.abs(O2)#O2s.append(np.abs(O2.data.toarray()))
+                    OTOC[i] = C_t#OTOC.append(np.abs(C_t.data.toarray()))
+                    O1s[i] = O1#O1s.append(np.abs(O1.data.toarray()))
+                    O2s[i] = O2#O2s.append(np.abs(O2.data.toarray()))
         
         OTOC_Ks[j,:] = OTOC#OTOC_Ks.append(OTOC)
         if not soloOTOC:
@@ -424,13 +436,13 @@ def Evolution_FFT_numpy_state(time_lim, state, N, Ks, A, B, op = 'X', ket=False,
             O2_Ks[j,:] = O2s#O2_Ks.append(O2s)  
             
     # return time duration of rutine
-    print(f"\nTOTAL --- {time.time() - start_time} seconds ---" )
+    print(f"\n Ks loop --- {time.time() - start_time} seconds ---" )
     
     flag = 'FFT_with_arbitrary_state'
     if ket:
         flag = flag+f'_ket_sigma{sigma}_sinheff'
     else:
-        flag = flag+f'_density_sigma{sigma}_sinheff'
+        flag = flag+f'_density__sigma{sigma}_sinheff'
         
     if not soloOTOC:
         return [OTOC_Ks, O1_Ks, O2_Ks, flag, ket, soloOTOC]
@@ -440,7 +452,7 @@ def Evolution_FFT_numpy_state(time_lim, state, N, Ks, A, B, op = 'X', ket=False,
 
 #%%
 # Define basis size        
-N = 5000#2**8
+N = 5000#2**8 # Tiene que ser par
 
 # Define position and momentum values in the torus
 qs = np.arange(0, N) #take qs in [0;N) with qs integer
@@ -468,9 +480,9 @@ print(f'Tiempo operadores: {t1-t0}')
 # B = X
 
 A = P.data.toarray()
-B = X.data.toarray()
+B = P.data.toarray()
 
-operators = 'AP_BX'
+operators = 'AP_BP'
 
 # Define K values for the simulation
 
@@ -480,17 +492,18 @@ Ks = np.array([19.74])#Kspelado*(4*np.pi**2) # K values np.array([Kpelado])
 
 # Define pure state
 t2 = time.time()
-sigma = N/2
+# sigma = 1/(2*np.pi*N)/10000
 # state0 = gaussian_state(int(N/2), 0, sigma)
 # state0 = gaussian_state(int(N/2), 0, sigma, ket=True)
 
 # numpy states
-state0_numpy = gaussian_state_numpy(int(N/2), 0, sigma)
+# n0 = 0
+# state0_numpy = gaussian_state_numpy(int(N/2), n0, sigma)
 # state0_numpy = gaussian_state_numpy(int(N/2), 0, sigma, ket=True)
 t3 = time.time()
 print(f'Tiempo estado: {t3-t2}')
 # Define time array
-time_lim = int(5e1) # number of kicks
+time_lim = int(1e1) # number of kicks
 
 #%% clear all variables
 # import sys
@@ -504,7 +517,7 @@ time_lim = int(5e1) # number of kicks
 # OTOC_Ks, flag, ket, soloOTOC = Evolution_FFT_numpy_state(times, state0, N, Ks, A, B, op ='P', ket=False, soloOTOC=True)
 
 ### compute OTOC with O1 and O2 in the "Heisenberg picture"
-OTOC_Ks, O1_Ks, O2_Ks, flag, ket, soloOTOC = Evolution_FFT_numpy_state(time_lim, state0_numpy, N, Ks, A, B, op ='P', ket=False, soloOTOC=False)
+# OTOC_Ks, O1_Ks, O2_Ks, flag, ket, soloOTOC = Evolution_FFT_numpy_state(time_lim, state0_numpy, N, Ks, A, B, op ='P', ket=False, soloOTOC=False)
 
 ### compute OTOC with O1 and O2 in the "Schrodinger picture"
 # OTOC_Ks, O1_Ks, O2_Ks, flag, ket, soloOTOC = Evolution_FFT_numpy_state(time_lim, state0_numpy, N, Ks, A, B, op ='P', ket=True, soloOTOC=False)
@@ -516,11 +529,11 @@ OTOC_Ks, O1_Ks, O2_Ks, flag, ket, soloOTOC = Evolution_FFT_numpy_state(time_lim,
 # OTOC_Ks, flag, soloOTOC = Evolution_FFT_numpy_Tinf(time_lim, N, Ks, A, B, op ='X', soloOTOC=True)
 
 ### compute OTOC with O1 and O2 in the "Heisenberg picture"
-# OTOC_Ks, O1_Ks, O2_Ks, flag, soloOTOC = Evolution_FFT_numpy_Tinf(time_lim, N, Ks, A, B, op ='X', soloOTOC=False)
+OTOC_Ks, O1_Ks, O2_Ks, flag, soloOTOC = Evolution_FFT_numpy_Tinf(time_lim, N, Ks, A, B, op ='X', soloOTOC=False)
 
 
 # define file name
-file = flag+f'_k{Ks}_basis_size{N}_time_lim{time_lim}_'+operators+'.npz'#+'_evolucion_al_reves'
+file = flag+f'_k{Ks}_basis_size{N}_time_lim{time_lim}'+operators+'.npz'#+'_evolucion_al_reves' _centro{n0}
 
 #%%
 # Select type of evolution and state
@@ -633,127 +646,288 @@ if not soloOTOC:
     np.savez(file, OTOC=OTOC_Ks, O1_Ks=O1_Ks, O2_Ks=O2_Ks, ly1=ly1)            
 else:
     np.savez(file, OTOC=OTOC_Ks, ly1=ly1)
-#%% plot 
+# #%% plot 
 
-# load data
-# file = 'FFT_with_Tinf_state_k0.051_basis_size1000_points5_AP_BX.npz'
-# archives = np.load(file)
-# OTOC_Ks = archives['OTOC']
-# O1_Ks = archives['O1_Ks']
-# O2_Ks = archives['O2_Ks']
-# ly1 = archives['ly1']
 
-# Ks = [0.05, 0.1,  0.15, 0.2,  0.25, 0.3,  0.35, 0.4,  0.45]
-# Ks = np.array([0.1, 0.2, 0.3, 0.4])*4*np.pi**2
-# Ks = [2.0133993,3.98732018,5.96124106,7.93516194,9.90908282,11.8830037,13.85692458,15.83084546,17.80476634]
 
-# soloOTOC=False
+# # Ks = [0.05, 0.1,  0.15, 0.2,  0.25, 0.3,  0.35, 0.4,  0.45]
+# # Ks = np.array([0.1, 0.2, 0.3, 0.4])*4*np.pi**2
+# # Ks = [2.0133993,3.98732018,5.96124106,7.93516194,9.90908282,11.8830037,13.85692458,15.83084546,17.80476634]
 
-# domain for the lyapunov expression
-xdom = np.linspace(0,2,int(1e3))
+# # soloOTOC=False
 
-# time_lim = 5
-times = np.arange(0,time_lim)
+# # domain for the lyapunov expression
+# xdom = np.linspace(0,2,int(1e3))
 
-# N = 2000
-# define colormap
-colors = plt.cm.jet(np.linspace(0,1,len(Ks)))
+# # time_lim = 5
+# times = np.arange(0,time_lim)
 
-# create the figure
-plt.figure(figsize=(16,10), dpi=100)
+# # N = 2000
+# # define colormap
+# colors = plt.cm.jet(np.linspace(0,1,len(Ks)))
 
-# all plots in the same figure
-plt.title(f'OTOC N = {N} A = X, B = P')
-for i, n in enumerate(Ks):
-    
-    # compute the Ehrenfest's time
-    tE = np.log(N)/ly1[i]
-    
-    # plot's shift parameters 
-    factor = 1#2**(i)
-    b = 0#np.log2(n)
-    
-    # plot log10(C(t))
-    
-    if ket: # reshape array for plot
-        OTOC_Ks[i] = np.reshape(OTOC_Ks[i], (time_lim,))
-    
-    yaxis = np.log10(OTOC_Ks[i]*factor)+b#OTOC_Ks[i]#
-    plt.plot(times, yaxis,':^r' , label=f'K={Ks[i]}', color=colors[i]);#(2**i)*
-    
-    # plot lyapunov  
-    ylyap = np.log10(np.exp(2*(ly1[i])*(xdom)))+b+np.log10(OTOC_Ks[i][0])
-    plt.plot(xdom, ylyap,'b-' ,lw=0.5, label=f'Lyapunov', color=colors[i])
-    
-    # plot vertical lines in the corresponding Ehrenfest's time for each K
-    plt.vlines(tE, np.min(np.log10(OTOC_Ks[0]*factor)+b), np.max(np.log10(OTOC_Ks[0]*factor)+b), lw=0.5, ls='dashed', alpha=0.8, color=colors[i])
-    
-plt.xlabel('Time');
-plt.ylabel(r'$log \left(C(t) \right)$');
-plt.xlim((0,10))
-# plt.ylim((-12,0))
-plt.grid();
-plt.legend(loc='best');
-plt.show()
-plt.savefig('OTOC_'+flag+f'_k{Ks}_basis_size{N}_AX_BP.png', dpi=300)#_Gauss_sigma{sigma}
+# # create the figure
+# plt.figure(figsize=(16,10), dpi=100)
 
-if not soloOTOC:
+# # all plots in the same figure
+# plt.title(f'OTOC N = {N} A = X, B = P. n0 = {n0}, sigma = {sigma}')
+# for i, n in enumerate(Ks):
     
-    # create the figure
-    plt.figure(figsize=(16,10), dpi=100)
+#     # compute the Ehrenfest's time
+#     tE = np.log(N)/ly1[i]
     
-    # all plots in the same figure
-    # plt.title(f'O2 N = {N} A = X, B = P'+flag)
+#     # plot's shift parameters 
+#     factor = 1#2**(i)
+#     b = 0#np.log2(n)
     
-    for i, n in enumerate(Ks):
-        # plot shift parameters
-        factor = 1#2**(i)
-        b = 0#np.log2(n)
+#     # plot log10(C(t))
+    
+#     if ket: # reshape array for plot
+#         OTOC_Ks[i] = np.reshape(OTOC_Ks[i], (time_lim,))
+    
+#     yaxis = np.log10(OTOC_Ks[i]*factor)+b#OTOC_Ks[i]#
+#     plt.plot(times, yaxis,':^r' , label=f'pure state', color=colors[i]);#(2**i)*
+    
+#     # yaxis_Tinf = np.log10(OTOC_Ks_Tinf[i]*factor)+b#OTOC_Ks[i]#
+#     # plt.plot(times, yaxis_Tinf,':^r' , label=r'$T = \infty$')#, color=colors[i]);#(2**i)*
+    
+#     # plot lyapunov  
+#     ylyap = np.log10(np.exp(2*(ly1[i])*(xdom)))+b+np.log10(OTOC[i][0])
+#     plt.plot(xdom, ylyap,'b-' ,lw=0.5, label=f'Lyapunov', color=colors[i])
+    
+#     # plot vertical lines in the corresponding Ehrenfest's time for each K
+#     plt.vlines(tE, np.min(np.log10(OTOC_Ks[0]*factor)+b), np.max(np.log10(OTOC_Ks[0]*factor)+b), lw=0.5, ls='dashed', alpha=0.8, color=colors[i])
+    
+# plt.xlabel('Time');
+# plt.ylabel(r'$log \left(C(t) \right)$');
+# # plt.xlim((0,10))
+# # plt.ylim((-12,0))
+# plt.grid();
+# plt.legend(loc='best');
+# plt.show()
+# plt.savefig('OTOC_'+flag+f'_k{Ks}_basis_size{N}_AX_BP.png', dpi=300)#_Gauss_sigma{sigma}
+
+# if not soloOTOC:
+    
+#     # create the figure
+#     plt.figure(figsize=(16,10), dpi=100)
+    
+#     # all plots in the same figure
+#     plt.title(f'O2 N = {N} A = X, B = P. n0 = {n0}, sigma = {sigma}')
+    
+#     for i, n in enumerate(Ks):
+#         # plot shift parameters
+#         factor = 1#2**(i)
+#         b = 0#np.log2(n)
         
-        # plot log10(O2(t))
+#         # plot log10(O2(t))
         
-        if ket: # reshape array for plot
-            O2_Ks[i] = np.reshape(O2_Ks[i], (time_lim,))
+#         if ket: # reshape array for plot
+#             O2_Ks[i] = np.reshape(O2_Ks[i], (time_lim,))
             
-        yO2=np.log10(O2_Ks[i]*factor)+b
-        plt.plot(times, yO2,':^r' , label=f'K={Ks[i]}', color=colors[i]);#(2**i)*
+#         yO2=np.log10(O2_Ks[i]/N*factor)+b
+#         plt.plot(times, yO2,':^r' , label=f'pure state', color=colors[i]);#(2**i)*
         
-    plt.xlabel('Time');
-    plt.ylabel(r'$log \left(O_2(t) \right)$');
-    # plt.xlim((0,10))
-    # plt.ylim((-8,0))
-    plt.grid();
-    plt.legend(loc='best');
-    plt.show()
-    plt.savefig('O2_'+flag+f'_k{Ks}_basis_size{N}_AX_BP.png', dpi=300)#_Gauss_sigma{sigma}
-    
-    # alpha = 0.47 # for K = 19.74
-    
-    # create the figure
-    plt.figure(figsize=(16,10), dpi=100)
-    
-    # all plots in the same figure
-    plt.title(f'O1 N = {N} A = X, B = P'+flag)
-    
-    for i, n in enumerate(Ks):
-        # plot shift parameters
-        factor = 1#2**(i)
-        b = 0#np.log2(n)
+#         # yaxis_Tinf = np.log10(O2_Ks_Tinf[i]/N*factor)+b#OTOC_Ks[i]#
+#         # plt.plot(times, yaxis_Tinf,':^r' , label=r'$T = \infty$')#, color=colors[i]);#(2**i)*
         
-        # plot log10(O1(t))
-        if ket: # reshape array for plot   
-            O1_Ks[i] = np.reshape(O1_Ks[i], (time_lim,))
-        yO1 = np.log10(O1_Ks[i]*factor)+b
-        plt.plot(times, yO1,':^r' , label=f'K={Ks[i]}', color=colors[i]);#(2**i)*
+#     plt.xlabel('Time');
+#     plt.ylabel(r'$log \left(O_2(t) \right)$');
+#     # plt.xlim((0,10))
+#     # plt.ylim((-8,0))
+#     plt.grid();
+#     plt.legend(loc='best');
+#     plt.show()
+#     plt.savefig('O2_'+flag+f'_k{Ks}_basis_size{N}_AX_BP.png', dpi=300)#_Gauss_sigma{sigma}
+    
+#     alpha = 0.47 # for K = 19.74
+    
+#     # create the figure
+#     plt.figure(figsize=(16,10), dpi=100)
+    
+#     # all plots in the same figure
+#     plt.title(f'O1 N = {N} A = X, B = P. n0 = {n0}, sigma = {sigma}')
+    
+#     for i, n in enumerate(Ks):
+#         # plot shift parameters
+#         factor = 1#2**(i)
+#         b = 0#np.log2(n)
         
-        # plot PR Resonances
-        # plt.plot(xdom,np.log10(abs(alpha)**(2*xdom))+np.log10(O1_Ks[i][0]*factor)+b,'b-' ,lw=0.5, label=f'RPR', color=colors[i])#np.log10(OTOC_Ks[i][0])
-    plt.xlabel('Time');
-    plt.ylabel(r'$log \left(O_1(t) \right)$');
-    # plt.xlim((0,10))
-    # plt.ylim((-8,0))
-    plt.grid();
-    plt.legend(loc='best');
-    plt.show()
-    plt.savefig('O1_'+flag+f'_k{Ks}_basis_size{N}_AX_BP.png', dpi=300)#_Gauss_sigma{sigma}
-    # np.savez(f'OTOC_KR_Knoeff_k{Ks}_basis_size{N}_AP_BX.npz', OTOC=OTOC_Ks)
+#         # plot log10(O1(t))
+#         if ket: # reshape array for plot   
+#             O1_Ks[i] = np.reshape(O1_Ks[i], (time_lim,))
+#         yO1 = np.log10(O1_Ks[i]/N*factor)+b
+#         plt.plot(times, yO1,':^r' , label=f'pure state', color=colors[i]);#(2**i)*
+        
+#         # yaxis_Tinf = np.log10(O1_Ks_Tinf[i]/N*factor)+b#OTOC_Ks[i]#
+#         # plt.plot(times, yaxis_Tinf,':^r' , label=r'$T = \infty$')#, color=colors[i]);#(2**i)*
+        
+#         # plot PR Resonances
+#         plt.plot(xdom,np.log10(abs(alpha)**(2*xdom))+np.log10(O1_Ks[i][0]/N*factor)+b,'b-' ,lw=0.5, label=f'RPR', color=colors[i])#np.log10(OTOC_Ks[i][0])
+#     plt.xlabel('Time');
+#     plt.ylabel(r'$log \left(O_1(t) \right)$');
+#     # plt.xlim((0,10))
+#     # plt.ylim((-8,0))
+#     plt.grid();
+#     plt.legend(loc='best');
+#     plt.show()
+#     plt.savefig('O1_'+flag+f'_k{Ks}_basis_size{N}_AX_BP.png', dpi=300)#_Gauss_sigma{sigma}
+#     # np.savez(f'OTOC_KR_Knoeff_k{Ks}_basis_size{N}_AP_BX.npz', OTOC=OTOC_Ks)
+# #%% PP XP XX plot
+# # # load data XX
+# file = 'FFT_with_Tinf_state_k[19.74]_basis_size2000_time_lim10AX_BX.npz'
+# archives = np.load(file)
+# OTOC_XX = archives['OTOC']
+# O1_XX = archives['O1_Ks']
+# O2_XX = archives['O2_Ks']
+# # ly1 = archives['ly1']
+
+# # # load data PX
+# file = 'FFT_with_Tinf_state_k[19.74]_basis_size2000_time_lim10AP_BX.npz'
+# archives = np.load(file)
+# OTOC_PX = archives['OTOC']
+# O1_PX = archives['O1_Ks']
+# O2_PX = archives['O2_Ks']
+# # ly1 = archives['ly1']
+
+# # # load data PP
+# file = 'FFT_with_Tinf_state_k[19.74]_basis_size2000_time_lim10AP_BP.npz'
+# archives = np.load(file)
+# OTOC_PP = archives['OTOC']
+# O1_PP = archives['O1_Ks']
+# O2_PP = archives['O2_Ks']
+
+# xdom = np.linspace(0,2,int(1e3))
+
+# # time_lim = 5
+# times = np.arange(0,time_lim)
+
+# # N = 2000
+# # define colormap
+# colors = plt.cm.jet(np.linspace(0,1,len(Ks)))
+
+# # create the figure
+# plt.figure(figsize=(16,10), dpi=100)
+
+# # all plots in the same figure
+# # plt.title(f'OTOC N = {N} A = X, B = P. n0 = {n0}, sigma = {sigma}')
+# for i, n in enumerate(Ks):
+    
+#     # compute the Ehrenfest's time
+#     tE = np.log(N)/ly1[i]
+    
+#     # plot's shift parameters 
+#     factor = 1#2**(i)
+#     b = 0#np.log2(n)
+    
+#     # plot log10(C(t))
+    
+#     # if ket: # reshape array for plot
+#     #     OTOC_Ks[i] = np.reshape(OTOC_Ks[i], (time_lim,))
+    
+#     yaxis_XX = np.log10(OTOC_XX[i]*factor)+b#OTOC_Ks[i]#
+#     plt.plot(times, yaxis_XX,':^r' , label=f'XX');#(2**i)*
+    
+#     yaxis_PX = np.log10(OTOC_PX[i]*factor)+b#OTOC_Ks[i]#
+#     plt.plot(times, yaxis_PX,':^b' , label=f'PX');#(2**i)*
+    
+#     yaxis_PP = np.log10(OTOC_XX[i]*factor)+b#OTOC_Ks[i]#
+#     plt.plot(times, yaxis_PP,':^g' , label=f'PP');#(2**i)*
+    
+#     # yaxis_Tinf = np.log10(OTOC_Ks_Tinf[i]*factor)+b#OTOC_Ks[i]#
+#     # plt.plot(times, yaxis_Tinf,':^r' , label=r'$T = \infty$')#, color=colors[i]);#(2**i)*
+    
+#     # plot lyapunov  
+#     ylyap = np.log10(np.exp(2*(ly1[i])*(xdom)))+b+np.log10(OTOC[i][0])
+#     plt.plot(xdom, ylyap,'b-' ,lw=0.5, label=f'Lyapunov', color=colors[i])
+    
+#     # plot vertical lines in the corresponding Ehrenfest's time for each K
+#     plt.vlines(tE, np.min(np.log10(OTOC_Ks[0]*factor)+b), np.max(np.log10(OTOC_Ks[0]*factor)+b), lw=0.5, ls='dashed', alpha=0.8, color=colors[i])
+    
+# plt.xlabel('Time');
+# plt.ylabel(r'$log \left(C(t) \right)$');
+# # plt.xlim((0,10))
+# # plt.ylim((-12,0))
+# plt.grid();
+# plt.legend(loc='best');
+# plt.show()
+# # plt.savefig('OTOC_'+flag+f'_k{Ks}_basis_size{N}_AX_BP.png', dpi=300)#_Gauss_sigma{sigma}
+# if not soloOTOC:
+    
+#     # create the figure
+#     plt.figure(figsize=(16,10), dpi=100)
+    
+#     # all plots in the same figure
+#     # plt.title(f'O2 N = {N} A = X, B = P. n0 = {n0}, sigma = {sigma}')
+    
+#     for i, n in enumerate(Ks):
+#         # plot shift parameters
+#         factor = 1#2**(i)
+#         b = 0#np.log2(n)
+        
+#         # plot log10(O2(t))
+        
+#         # if ket: # reshape array for plot
+#         #     O2_Ks[i] = np.reshape(O2_Ks[i], (time_lim,))
+            
+#         yO2_XX = np.log10(O2_XX[i]/N*factor)+b
+#         plt.plot(times, yO2_XX,':^r' , label=f'XX');#(2**i)*
+        
+#         yO2_PX = np.log10(O2_PX[i]/N*factor)+b
+#         plt.plot(times, yO2_PX,':^b' , label=f'PX');#(2**i)*
+        
+#         yO2_PP = np.log10(O2_PP[i]/N*factor)+b
+#         plt.plot(times, yO2_PP,':^g' , label=f'PP');#(2**i)*
+        
+#         # yaxis_Tinf = np.log10(O2_Ks_Tinf[i]/N*factor)+b#OTOC_Ks[i]#
+#         # plt.plot(times, yaxis_Tinf,':^r' , label=r'$T = \infty$')#, color=colors[i]);#(2**i)*
+        
+#     plt.xlabel('Time');
+#     plt.ylabel(r'$log \left(O_2(t) \right)$');
+#     # plt.xlim((0,10))
+#     # plt.ylim((-8,0))
+#     plt.grid();
+#     plt.legend(loc='best');
+#     plt.show()
+#     plt.savefig('O2_'+flag+f'_k{Ks}_basis_size{N}_AX_BP.png', dpi=300)#_Gauss_sigma{sigma}
+    
+#     alpha = 0.47 # for K = 19.74
+    
+#     # create the figure
+#     plt.figure(figsize=(16,10), dpi=100)
+    
+#     # all plots in the same figure
+#     # plt.title(f'O1 N = {N} A = X, B = P. n0 = {n0}, sigma = {sigma}')
+    
+#     for i, n in enumerate(Ks):
+#         # plot shift parameters
+#         factor = 1#2**(i)
+#         b = 0#np.log2(n)
+        
+#         # plot log10(O1(t))
+#         # if ket: # reshape array for plot   
+#         #     O1_Ks[i] = np.reshape(O1_Ks[i], (time_lim,))
+        
+#         yO1_XX = np.log10(O1_XX[i]/N*factor)+b
+#         plt.plot(times, yO1_XX,':^r' , label=f'XX');#(2**i)*
+        
+#         yO1_PX = np.log10(O1_PX[i]/N*factor)+b
+#         plt.plot(times, yO1_PX,':^b' , label=f'PX');#(2**i)*
+        
+#         yO1_PP = np.log10(O1_PP[i]/N*factor)+b
+#         plt.plot(times, yO1_PP,':^g' , label=f'PP');#(2**i)*
+        
+#         # yaxis_Tinf = np.log10(O1_Ks_Tinf[i]/N*factor)+b#OTOC_Ks[i]#
+#         # plt.plot(times, yaxis_Tinf,':^r' , label=r'$T = \infty$')#, color=colors[i]);#(2**i)*
+        
+#         # plot PR Resonances
+#         plt.plot(xdom,np.log10(abs(alpha)**(2*xdom))+np.log10(O1_Ks[i][0]/N*factor)+b,'b-' ,lw=0.5, label=f'RPR', color=colors[i])#np.log10(OTOC_Ks[i][0])
+#     plt.xlabel('Time');
+#     plt.ylabel(r'$log \left(O_1(t) \right)$');
+#     # plt.xlim((0,10))
+#     # plt.ylim((-8,0))
+#     plt.grid();
+#     plt.legend(loc='best');
+#     plt.show()
+#     plt.savefig('O1_'+flag+f'_k{Ks}_basis_size{N}_AX_BP.png', dpi=300)#_Gauss_sigma{sigma}
+#     # np.savez(f'OTOC_KR_Knoeff_k{Ks}_basis_size{N}_AP_BX.npz', OTOC=OTOC_Ks)
