@@ -70,20 +70,21 @@ def Evolution_KI_Tinf(time_lim, N, J, hx, hz, A, B):
         if i==0:
             B_t = B
         else:
-            # FFT for efficient evolution
-            # diagonal evolution
+            # Evolution
              B_t = B_t.transform(U.dag())# U*B_t*U.dag()
         
-        
+        # compute O1 and O2 
         O1 = (B_t*A*B_t*A).tr()
         O2 = (B_t**2*A**2).tr()
-                    
+        
+        # compute OTOC
         dim = 2**N
         C_t = -2*( O1 - O2 )/dim
         
-        OTOCs[i] = np.abs(C_t)#OTOC.append(np.abs(C_t.data.toarray()))
-        O1s[i] = np.abs(O1)#O1s.append(np.abs(O1.data.toarray()))
-        O2s[i] = np.abs(O2)#O2s.append(np.abs(O2.data.toarray()))
+        # store data
+        OTOCs[i] = np.abs(C_t)
+        O1s[i] = np.abs(O1)
+        O2s[i] = np.abs(O2)
 
         
     print(f"\nTOTAL --- {time.time() - start_time} seconds ---" )
