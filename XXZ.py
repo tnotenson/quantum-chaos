@@ -17,15 +17,10 @@ sx=sigmax()
 sy=sigmay()
 sz=sigmaz()
 s0=(qeye(2)-sz)/2
-q=qeye(2)
+si=qeye(2)
 
 # construct the H
 def XXZ(N, J, mu, lamb, h = 0, BC ='open', impurity=0):
-
-    si = qeye(2)
-    sx = sigmax()
-    sy = sigmay()
-    sz = sigmaz()
 
     sx_list = []
     sy_list = []
@@ -77,8 +72,6 @@ def XXZ(N, J, mu, lamb, h = 0, BC ='open', impurity=0):
 
 # construct tensor product of sz operators of each site
 def Sz(N):
-    si = qeye(2)
-    sz = sigmaz()
     sz_list = []
     for n in range(N):
         op_list = []
@@ -90,7 +83,7 @@ def Sz(N):
 
 # construct permute operator
 def pij(l,i,j):
-    geye=[qeye(2) for k in range(l)]
+    geye=[si for k in range(l)]
     
     H=0*tensor(geye)
     g=geye.copy(); g[i]=sx;g[j]=sx; H+= tensor(g)
@@ -101,7 +94,7 @@ def pij(l,i,j):
 
 # construct parity operator
 def parity(l):
-    geye=[qeye(2) for k in range(l)]
+    geye=[si for k in range(l)]
     
     P=tensor(geye)
     for m in range(l//2):
@@ -148,7 +141,7 @@ def chbasis_bloque(H, ind_1, pari=1):
     # reduce H and parity to Sz = M subspace
     
     P_red = P.extract_states(ind_1)
-    H_red=H.extract_states(ind_1)
+    H_red = H.extract_states(ind_1)
     
     # diagonalize the reduced H
     time_0 = time.time()
@@ -184,17 +177,18 @@ def chbasis_bloque(H, ind_1, pari=1):
     print('\n',H_ssub) # check that H is diagonal
     print('\n',P_ssub) # # check that parity is equal (prop) to identity
     
-    return H_ssub
+    return H_ssub, ind_par
 
 
+#%%
 # define H's parameters
-N = 4
+N = 12
 J = 1
 mu = 0.5
 lamb = 0.5
 
 # define number of excitations
-exc = int(N/2)
+exc = int(N/4)
 H = XXZ(N, J, mu, lamb)
 
 # search index of computational basis with Sz = M
@@ -204,12 +198,63 @@ time_1 = time.time()
 print(f'sz_subspace_diag :{time_1 - time_0} seg')
 
 # reduce to a subspace with Sz = M and parity = 1
-H_sub = chbasis_bloque(H, ind_1)
+H_sub, ind_par = chbasis_bloque(H, ind_1)
 time_2 = time.time()
 print(f'\nchbasis_bloque :{time_2 - time_1} seg')
 # print(f'\nIs H_sub diagonal?: {not bool(np.count_nonzero(H_sub - np.diag(np.diagonal(H_sub))))}')
 # print(f'H_sub diagonal: {H_sub.diag()}')
+#%%
+sx_list = []
+sy_list = []
+sz_list = []
 
+for n in range(N):
+    op_list = []
+    for m in range(N):
+        op_list.append(si)
+
+    op_list[n] = sx
+    sx_list.append(tensor(op_list))
+
+    op_list[n] = sy
+    sy_list.append(tensor(op_list))
+
+    op_list[n] = sz
+    sz_list.append(tensor(op_list))
+    
+
+def Evolution2p_KI_Tinf(H, time_lim, N, J, hx, hz, A, B):
+    
+    start_time = time.time() 
+    
+    # define arrays for data storage
+    Cs = np.zeros((time_lim), dtype=np.complex_)#[]
+        
+    # define time evolution operator
+    U = H.expm()
+    
+    # compute OTOC, O1 and O2 for each time
+    for i in tqdm(range(time_lim), desc='Evolution loop'):
+        
+        if i==0:
+            B_t = B
+        else:
+            # Evolution
+             B_t = B_t.transform(U.dag())# U*B_t*U.dag()
+        
+        # compute 2-point correlator
+        dim = 2**N
+        C_t = (B_t*A).tr()
+        C_t = C_t/dim
+
+        
+        # store data
+        Cs[i] = np.abs(C_t)
+
+        
+    print(f"\nTOTAL --- {time.time() - start_time} seconds ---" )
+    flag = '2p_KI_with_Tinf_state'
+    return [Cs, flag]
 
 
 
