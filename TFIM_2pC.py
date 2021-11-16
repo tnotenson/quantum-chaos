@@ -255,7 +255,7 @@ def Evolution2p_U_KI_Tinf(U, time_lim, N, A, B):
     flag = '2p_U_KI_with_Tinf_state'
     return [Cs, flag]
 
-time_lim = 30
+time_lim = 50
 
 Cs, flag = Evolution2p_U_KI_Tinf(U_sub, time_lim, N, A_sub, A_sub)
 #Cs, flag = Evolution2p_H_KI_Tinf(H_sub, time_lim, N, A_sub, A_sub)
@@ -292,4 +292,4 @@ plt.ylabel(r'$log \left(C(t) \right)$');
 plt.grid();
 plt.legend(loc='best');
 plt.show()
-plt.savefig('2pC_'+flag+f'_J{j:.2f}_hz{x:.2f}_hz{z:.2f}_basis_size{N}_AZ_BZ.png', dpi=300)#_Gauss_sigma{sigma}
+plt.savefig('2pC_'+flag+f'_time_lim{time_lim}_J{j:.2f}_hz{x:.2f}_hz{z:.2f}_basis_size{N}_AZ_BZ.png', dpi=300)#_Gauss_sigma{sigma}
