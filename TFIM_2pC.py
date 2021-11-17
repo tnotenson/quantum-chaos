@@ -14,6 +14,7 @@ import time
 from tqdm import tqdm # customisable progressbar decorator for iterators
 from numba import jit
 
+
 # define usefull one body operators 
 sx=sigmax()
 sy=sigmay()
@@ -181,7 +182,8 @@ z = np.mean(hz)
 
 start_time = time.time()
 # let's try it
-# H = TFIM(N, hx, hz, Jz)
+
+#H = TFIM(N, hx, hz, Jz)
 U = fU(N, Jz, hx, hz)
 
 A = Sj(N, j='x')
@@ -233,11 +235,11 @@ def Evolution2p_H_KI_Tinf(H, time_lim, N, A, B):
             B_t = B_t.transform(U.dag())# U*B_t*U.dag()
         
         # compute 2-point correlator
-            
+
         dim = 2**N
         C_t = (B_t*A).tr() - A.tr()/dim
         C_t = C_t/dim
-        
+
 
         print(C_t)
         # store data
@@ -258,13 +260,15 @@ def Evolution2p_U_KI_Tinf(U, time_lim, N, A, B):
     # define floquet operator
 #    U = fU(N, J, hx, hz, theta)
     Udag = U.H
-    
+
+
     # compute OTOC, O1 and O2 for each time
     for i in tqdm(range(time_lim), desc='Evolution loop'):
         
         if i==0:
             B_t = B
         else:
+
             # qutip evolution
             # B_t = B_t.transform(U.dag())
             # numpy evolution
@@ -280,6 +284,7 @@ def Evolution2p_U_KI_Tinf(U, time_lim, N, A, B):
         C_t = C_t/dim
         
         print(C_t)
+
         
         # store data
         Cs[i] = np.abs(C_t)
