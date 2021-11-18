@@ -12,6 +12,8 @@ from qutip import *
 from math import factorial
 import time
 from tqdm import tqdm # customisable progressbar decorator for iterators
+from numba import jit
+
 
 # define usefull one body operators 
 sx=sigmax()
@@ -95,10 +97,26 @@ def fU(N, J, hx, hz):
             op_list[n] = s_op
             s_list.append(tensor(op_list))
     
-    # define the hamiltonians
+    # # define the hamiltonians
     H0 = fH0(N, hx, hz, sx_list, sz_list)
     H1 = fH1(N, J, sz_list)
     
+    # e1, evec1 = H1.eigenstates()
+    # e0, evec0 = H0.eigenstates()
+    
+    # C1 = np.column_stack([vec for vec in evec1])
+    # C1inv = np.matrix(C1).H
+    
+    # C0 = np.column_stack([vec for vec in evec0])
+    # C0inv = np.matrix(C1).H
+    
+    # U1_diag = np.diag(np.exp(-1j*e1))
+    # U0_diag = np.diag(np.exp(-1j*e0))
+    
+    # U1 = C1inv@U1_diag@C1
+    # U0 = C0inv@U0_diag@C0
+    
+    # U = U1@U0
     # define the floquet operator
     U = (-1j*H1).expm()*(-1j*H0).expm()
     
@@ -132,11 +150,11 @@ def Sj(N, j='z'):
         for m in range(N):
             op_list.append(si)
         if j == 'z':
-            op_list[n] = 0.5*sz
+            op_list[n] = sz
         elif j == 'x':
-            op_list[n] = 0.5*sx
+            op_list[n] = sx
         elif j == 'y':
-            op_list[n] = 0.5*sy
+            op_list[n] = sy
         s_list.append(tensor(op_list))
     return sum(s_list)
 
@@ -144,6 +162,27 @@ def can_bas(N,i):
     e = np.zeros(N)
     e[i] = 1.0
     return e
+
+@jit(nopython=True, parallel=True, fastmath = True)
+def Evolucion_numpy(B_t, U, Udag):
+    res = Udag@B_t@U
+    return res
+
+@jit(nopython=True, parallel=True, fastmath = True)
+def twopC_numpy_Tinf(A, B_t):
+    C = np.trace(B_t@A)
+    return C
+
+@jit(nopython=True, parallel=True, fastmath = True)
+def A_average(A, dims):
+    res = np.trace(A)**2/dims
+    return res
+
+@jit(nopython=True, parallel=True, fastmath = True)
+def C_t_commutator_numpy_Tinf(A, B_t):
+    com = B_t@A - A@B_t
+    C_t = np.trace(com.H@com)/N
+    return C_t
 #%% define operators
 # define parameters of Heisenberg chain with inclined field 
 N = 12
@@ -159,10 +198,11 @@ z = np.mean(hz)
 
 start_time = time.time()
 # let's try it
-#H = TFIM(N, hx, hz, Jz)
+
+# H = TFIM(N, hx, hz, Jz)
 U = fU(N, Jz, hx, hz)
 
-A = Sj(N, j='x')
+A = Sj(N, j='x')#/N
 print(f"\n Create Floquet operator --- {time.time() - start_time} seconds ---" )
 #%% separate symmetries
 start_time = time.time()
@@ -170,22 +210,24 @@ start_time = time.time()
 P = parity(N)
 ep, epvec = P.eigenstates()
 
-n_mone, n_one = np.unique(ep, return_counts = True) [1]
+n_mone, n_one = np.unique(ep, return_counts = True)[1]
 
 C = np.column_stack([vec.data.toarray() for vec in epvec])
 Cinv = np.linalg.inv(C)
 
-#H_par = H.transform(Cinv)
+# H_par = H.transform(Cinv)
 #print(H_par)
 U_par = U.transform(Cinv)
 #print(U_par)
 A_par = A.transform(Cinv)
 
-#H_sub = H_par.extract_states(np.arange(n_mone))
-U_sub = U_par.extract_states(np.arange(n_mone))
-A_sub = A_par.extract_states(np.arange(n_mone))
+# H_sub = H_par.extract_states(np.arange(n_mone:n_one+1))
+U_sub = U_par.extract_states(np.arange(n_mone,n_one+1)).data.toarray()
+A_sub = A_par.extract_states(np.arange(n_mone,n_one+1)).data.toarray()
 #print(H_sub)
+U_sub = np.matrix(U_sub)
 print(f"\n Separate parity eigenstates --- {time.time() - start_time} seconds ---" )
+
 #%%
 def Evolution2p_H_KI_Tinf(H, time_lim, N, A, B):
     
@@ -195,7 +237,7 @@ def Evolution2p_H_KI_Tinf(H, time_lim, N, A, B):
     Cs = np.zeros((time_lim))#, dtype=np.complex_)#[]
         
     # define time evolution operator
-    U = H.expm()
+    U = (-1j*H).expm()
     
     # print(U)
     
@@ -209,9 +251,11 @@ def Evolution2p_H_KI_Tinf(H, time_lim, N, A, B):
             B_t = B_t.transform(U.dag())# U*B_t*U.dag()
         
         # compute 2-point correlator
-        dim = 2**N
-        C_t = (B_t*A).tr() - A.tr()/dim
+
+        dim = A.shape[0]
+        C_t = (B_t*A).tr() - A.tr()**2/dim
         C_t = C_t/dim
+
 
         print(C_t)
         # store data
@@ -228,23 +272,34 @@ def Evolution2p_U_KI_Tinf(U, time_lim, N, A, B):
     
     # define arrays for data storage
     Cs = np.zeros((time_lim), dtype=np.complex_)#[]
-        
+    
     # define floquet operator
 #    U = fU(N, J, hx, hz, theta)
-    
+    Udag = U.H
+
+
     # compute OTOC, O1 and O2 for each time
     for i in tqdm(range(time_lim), desc='Evolution loop'):
         
         if i==0:
             B_t = B
         else:
-            # Evolution
-             B_t = B_t.transform(U.dag())# U*B_t*U.dag()
+
+            # qutip evolution
+            # B_t = B_t.transform(U.dag())
+            # numpy evolution
+            B_t = Evolucion_numpy(B_t, U, Udag)
+            
+        dim = A_sub.shape[0]
+        # compute 2-point correlator with qutip
+        # C_t = (B_t*A).tr() - A.tr()/dim
+        # C_t = C_t/dim
         
-        # compute 2-point correlator
-        dim = 2**N
-        C_t = (B_t*A).tr() - A.tr()/dim
+        # compute 2-point correlator with qutip
+        C_t = twopC_numpy_Tinf(A, B_t) - A_average(A, dim)
         C_t = C_t/dim
+        
+        print(C_t)
 
         
         # store data
@@ -258,7 +313,7 @@ def Evolution2p_U_KI_Tinf(U, time_lim, N, A, B):
 time_lim = 50
 
 Cs, flag = Evolution2p_U_KI_Tinf(U_sub, time_lim, N, A_sub, A_sub)
-#Cs, flag = Evolution2p_H_KI_Tinf(H_sub, time_lim, N, A_sub, A_sub)
+# Cs, flag = Evolution2p_H_KI_Tinf(H_sub, time_lim, N, A_sub, A_sub)
 
 #%% plot 2-point correlator results
 
@@ -279,7 +334,7 @@ plt.title(f'2-point correlator N = {N}')
 # plot log10(C(t))
 
 
-yaxis = np.log10(Cs)
+yaxis = np.log10(Cs/N)# - np.log10(Cs[0])
 plt.plot(times, yaxis,':^r' , label=r'$T = \infty$');
 
 # # plot vertical lines in the corresponding Ehrenfest's time for each K
@@ -288,7 +343,7 @@ plt.plot(times, yaxis,':^r' , label=r'$T = \infty$');
 plt.xlabel('Time');
 plt.ylabel(r'$log \left(C(t) \right)$');
 # plt.xlim((0,10))
-# plt.ylim((0,1e5))
+# plt.ylim((-4,0.1))
 plt.grid();
 plt.legend(loc='best');
 plt.show()
