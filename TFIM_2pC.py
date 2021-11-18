@@ -50,7 +50,7 @@ def TFIM(N, hx, hz, J):
         H += hz[n] * sz_list[n]
     # interaction terms
     for n in range(N-1):
-        H += - J[n] * sz_list[n] * sz_list[n+1]
+        H += - J[n] * 0.5 * sz_list[n] * sz_list[n+1]
     
     return H
 
@@ -75,7 +75,7 @@ def fH1(N, J, sz_list):
     
     # interaction terms
     for n in range(N):
-        H += J[n] * sz_list[n] * sz_list[(n+1)%N]
+        H += J[n] * 0.5 * sz_list[n] * sz_list[(n+1)%N]
     
     return H
 
@@ -100,24 +100,29 @@ def fU(N, J, hx, hz):
     # # define the hamiltonians
     H0 = fH0(N, hx, hz, sx_list, sz_list)
     H1 = fH1(N, J, sz_list)
+#    
+###    # define the floquet operator
+#    e1, evec1 = H1.eigenstates()
+#    e0, evec0 = H0.eigenstates()
+#   
+#    C1 = np.column_stack([vec.data.toarray() for vec in evec1])
+#    C1inv = np.matrix(C1).H
+#    
+#    C0 = np.column_stack([vec.data.toarray() for vec in evec0])
+#    C0inv = np.matrix(C0).H
+#    
+#    U1_diag = np.diag(np.exp(-1j*e1))
+#    U0_diag = np.diag(np.exp(-1j*e0))
+##    
+###    print(C1inv.shape)
+###    print(C1.shape)
+###    print(U1_diag)
+##    
+#    U1 = C1@U1_diag@C1inv
+#    U0 = C0@U0_diag@C0inv
+###    
+#    U = U1@U0
     
-    # e1, evec1 = H1.eigenstates()
-    # e0, evec0 = H0.eigenstates()
-    
-    # C1 = np.column_stack([vec for vec in evec1])
-    # C1inv = np.matrix(C1).H
-    
-    # C0 = np.column_stack([vec for vec in evec0])
-    # C0inv = np.matrix(C1).H
-    
-    # U1_diag = np.diag(np.exp(-1j*e1))
-    # U0_diag = np.diag(np.exp(-1j*e0))
-    
-    # U1 = C1inv@U1_diag@C1
-    # U0 = C0inv@U0_diag@C0
-    
-    # U = U1@U0
-    # define the floquet operator
     U = (-1j*H1).expm()*(-1j*H0).expm()
     
     return U
@@ -185,7 +190,7 @@ def C_t_commutator_numpy_Tinf(A, B_t):
     return C_t
 #%% define operators
 # define parameters of Heisenberg chain with inclined field 
-N = 12
+N = 8
 B = 1.4
 J = 1
 hx = B*np.ones(N)
@@ -204,7 +209,7 @@ U = fU(N, Jz, hx, hz)
 
 A = Sj(N, j='x')#/N
 print(f"\n Create Floquet operator --- {time.time() - start_time} seconds ---" )
-#%% separate symmetries
+#%% separate symmetries (1st option)
 start_time = time.time()
 
 P = parity(N)
@@ -226,8 +231,43 @@ U_sub = U_par.extract_states(np.arange(n_mone,n_one+1)).data.toarray()
 A_sub = A_par.extract_states(np.arange(n_mone,n_one+1)).data.toarray()
 #print(H_sub)
 U_sub = np.matrix(U_sub)
+#print(U_sub)
 print(f"\n Separate parity eigenstates --- {time.time() - start_time} seconds ---" )
-
+#%% separate symmetries (2nd option)
+start_time = time.time()
+dim = 2**N
+e_basis = [Qobj(can_bas(dim,i)) for i in range(dim)]
+par_basis_ones = np.zeros((dim,dim), dtype=np.complex_)
+for i in range(dim):
+    e_basis[i].dims = [[2 for i in range(N)], [1]]
+    par_basis_ones[i] = (1/2*(e_basis[i] + e_basis[i].permute(np.arange(0,N)[::-1]))).data.toarray()[:,0]
+    norma = np.linalg.norm(par_basis_ones[i])
+    if norma != 0:
+        par_basis_ones[i] = par_basis_ones[i]/norma
+    par = par_basis_ones[i].T@par_basis_ones[i]
+#    print(par)
+par_basis_ones = np.unique(par_basis_ones, axis=1)
+#print(par_basis_ones[:,::-1])
+bas = par_basis_ones
+A_red = bas.conj().T@A.data.toarray()@bas
+U_red = bas.conj().T@U.data.toarray()@bas
+#print(U_red)
+print(f"\n Separate parity eigenstates --- {time.time() - start_time} seconds ---" )
+#%% 
+#def U_parity(dim, U, basis):
+#    dim_par = basis.shape[1]
+##    print(basis.shape)
+#    U_sub = np.zeros((dim_par,dim_par), dtype=np.complex_)
+#    U = U.data.toarray()
+#    for row in range(dim_par):
+#        for column in range(dim_par):
+##            print(basis[:,row].conj().T.shape)
+##            print(basis[:,column].shape)
+##            print(U.shape)
+#            U_sub[row,column] = basis[:,row].conj().T@U@basis[:,column]
+#    return U_sub
+#
+#U_sub = U_parity(dim, U, par_basis_ones)
 #%%
 def Evolution2p_H_KI_Tinf(H, time_lim, N, A, B):
     
@@ -312,6 +352,7 @@ def Evolution2p_U_KI_Tinf(U, time_lim, N, A, B):
 
 time_lim = 50
 
+#Cs, flag = Evolution2p_U_KI_Tinf(U_red, time_lim, N, A_red, A_red)
 Cs, flag = Evolution2p_U_KI_Tinf(U_sub, time_lim, N, A_sub, A_sub)
 # Cs, flag = Evolution2p_H_KI_Tinf(H_sub, time_lim, N, A_sub, A_sub)
 
