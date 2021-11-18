@@ -147,21 +147,21 @@ def parity(l):
         P=pij(l,m,l-m-1)*P
     return P
 
-# construct tensor product of sz operators of each site
-def Sj(N, j='z'):
-    s_list = []
-    for n in range(N):
-        op_list = []
-        for m in range(N):
-            op_list.append(si)
-        if j == 'z':
-            op_list[n] = sz
-        elif j == 'x':
-            op_list[n] = sx
-        elif j == 'y':
-            op_list[n] = sy
-        s_list.append(tensor(op_list))
-    return sum(s_list)
+    # construct tensor product of sz operators of each site
+    def Sj(N, j='z'):
+        s_list = []
+        for n in range(N):
+            op_list = []
+            for m in range(N):
+                op_list.append(si)
+            if j == 'z':
+                op_list[n] = sz
+            elif j == 'x':
+                op_list[n] = sx
+            elif j == 'y':
+                op_list[n] = sy
+            s_list.append(tensor(op_list))
+        return sum(s_list)
 
 def can_bas(N,i):
     e = np.zeros(N)
