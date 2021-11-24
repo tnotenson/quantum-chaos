@@ -135,13 +135,13 @@ print(bas.shape)
 #%%
 ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyz"
   
-def decode (s):
+def decode(s):
     try:
         return ALPHABET.index(s)
     except ValueError:
         raise Exception("cannot dencode:{}".format(s))
 
-def base_to_dec (s, base = 16, pow = 0):
+def base_to_dec(s, base = 16, pow = 0):
     if s == "":
         return 0
     else:
@@ -149,10 +149,11 @@ def base_to_dec (s, base = 16, pow = 0):
     
 def pstos(p):
     p=[str(k) for k in p];     s="".join(p);     return s
+    
 def to_num(p0): #p string to u number
     p=p0.copy();     s=pstos(p);     u=base_to_dec(s,base=2);     return u-1
 
-def to_bs(x,n,base=2): 
+def to_bs(x,n,base=2): # binary to string
     x=x+1
     if x == 0:
         return [0 for k in range(n)]
@@ -174,23 +175,77 @@ def express(g,n): #print the algebra
         print('\nElement {}'.format(i))
         for u in g[i].keys():
             print(to_bs(u,n),g[i][u])
+            
+# Swap function
+def swapPositions(lista, i, j):
+    lista[i], lista[j] = lista[j], lista[i]
+    return lista
+
+def parity(lista):
+    L = len(lista)
+    
+    if L%2==0: imax = int(L/2)
+    else: imax = int((L-1)/2)
+        
+    for i in range(imax): lista = swapPositions(lista, i, L-1-i)
+    return lista
+        
+#%%
+# n=3
+# s = to_bs(to_num([1,1,1]),n)
+
+# g=[]
+# a={} ;
+# s = [0,0,0]; u = to_num(s) ; coef=1 ; a[u]=coef; 
+# g.append(a)
+# a={} ; 
+# s = [1,0,0]; u = to_num(s) ; coef=1/np.sqrt(2) ; a[u]=coef; 
+# s = [0,0,1]; u = to_num(s) ; coef=1/np.sqrt(2) ; a[u]=coef;
+# g.append(a)
+# # a={} ; 
+# # s = [1,0,0]; u = to_num(s) ; coef=1/np.sqrt(2) ; a[u]=coef; 
+# # s = [0,0,1]; u = to_num(s) ; coef=-1/np.sqrt(2) ; a[u]=coef;
+# # g.append(a)
+# a={} ; 
+# s = [0,1,0]; u = to_num(s) ; coef=1 ; a[u]=coef; 
+# g.append(a)
+# a={} ; 
+# s = [1,1,0]; u = to_num(s) ; coef=1/np.sqrt(2) ; a[u]=coef; 
+# s = [0,1,1]; u = to_num(s) ; coef=1/np.sqrt(2) ; a[u]=coef;
+# g.append(a)
+# a={} ; 
+# s = [1,0,1]; u = to_num(s) ; coef=1 ; a[u]=coef; 
+# g.append(a)
+# a={} ;
+# s = [1,1,1]; u = to_num(s) ; coef=1 ; a[u]=coef; 
+# g.append(a)
+# # a={} ; 
+# # s = [1,1,0]; u = to_num(s) ; coef=1/np.sqrt(2) ; a[u]=coef; 
+# # s = [0,1,1]; u = to_num(s) ; coef=-1/np.sqrt(2) ; a[u]=coef;
+# # g.append(a)
+
+
+
+# express(g,n)
 
 #%%
-n=3
-s = to_bs(to_num([1,1,1]),n)
+n=2
 
 g=[]
-
+a={} ;
+s = [0,0]; u = to_num(s) ; coef=1 ; a[u]=coef; 
+g.append(a)
 a={} ; 
-s = [1,0,0]; u = to_num(s) ; coef=1/np.sqrt(2) ; a[u]=coef; 
-s = [1,1,0]; u = to_num(s) ; coef=1/np.sqrt(2) ; a[u]=coef;
+s = [1,0]; u = to_num(s) ; coef=1/np.sqrt(2) ; a[u]=coef; 
+s = [0,1]; u = to_num(s) ; coef=1/np.sqrt(2) ; a[u]=coef;
 g.append(a)
 a={} ;
-s = [1,0,1]; u = to_num(s) ; coef=1 ; a[u]=coef; 
+s = [1,1]; u = to_num(s) ; coef=1 ; a[u]=coef; 
 g.append(a)
 
-express(g,n)
 
+
+express(g,n)
 #%%
 
 # =============================================================================
@@ -215,7 +270,8 @@ def Zona(a,n):
     for u,coef in a.items():
         
         s = to_bs(u,n); 
-        nz=np.count_nonzero(s) 
+        exc = np.count_nonzero(s) 
+        nz = exc - (len(s)-exc)
         
         ap[u] = nz*coef
         
@@ -223,7 +279,7 @@ def Zona(a,n):
         
 #%% Z
 
-for i,a in enumerate(g):
+for i,a in enumerate(g[:-1]):
     #|a'>= Mz a>
     ap = Zona(a,n)
     express([a,ap],n)
@@ -234,7 +290,7 @@ for i,a in enumerate(g):
 
 def Xonu(u,n):
     s = to_bs(u,n);
-    sp=np.abs(np.array(s)-1)
+    sp=(np.array(s)+1)%2#np.abs(np.array(s)-1)  
     up = to_num(sp)
     return up
 
@@ -262,16 +318,32 @@ for i,a in enumerate(g):
 
 def proy(a1,a2): # keys son numeros entre 0 y 2^n 
     
-    idx=  list(set(a1.keys()) & set(a2.keys())) #intersection
+    idx = list(set(a1.keys()) & set(a2.keys())) #intersection
     
-    val=sum([a1[key]*a2[key] for key in idx])
+    val = sum([a1[key]*a2[key] for key in idx])
 
     return val
 
+print(proy(a,ap))
 
-print(proy(g[0],g[0]))
+def suma(a1,a2): # keys son numeros entre 0 y 2^n 
+    
+    a = {};
+    
+    idx = list(set(a1.keys()) | set(a2.keys())) #intersection
+    
+    # print(idx)
+    
+    for key in idx:
+        a[key] = 0
+        if key in a1.keys():
+            a[key] += a1[key]
+        if key in a2.keys():
+            a[key] += a2[key]
 
+    return a
 
+print(express([suma(g[0],g[0])],n))
 #%% ZZ
 
 def ZZona(a,n): #ASSUMES NN
@@ -302,3 +374,37 @@ for i,a in enumerate(g):
     express([a,ap],n)
    
     print('\n\n')
+
+#%% Create hamiltonian in parity subspace
+dimg = len(g)
+
+H = np.zeros((dimg, dimg), dtype=np.complex_)
+
+for row in range(dimg):
+    # row = row-1
+    for column in range(dimg):
+        # column = column-1
+        print(row, column)
+        print("\nrow")
+        print(express([g[row]],n))
+        print("\ncolumn")
+        print(express([g[column]],n))
+        H0 = suma(Xona(g[column],n),Zona(g[column],n))
+        print("\nXona")
+        print(express([Xona(g[column],n)],n))
+        print("\nZona")
+        print(express([Zona(g[column],n)],n))
+        print("\nH0")
+        print(express([H0],n))
+        H1 = suma(H0,ZZona(g[column],n))
+        print("\nZZona")
+        print(express([ZZona(g[column],n)],n))
+        print("\nH1")
+        print(express([H1],n))
+        H[row, column] = proy(g[row], H1)
+        print('\nH')
+        print(H[row,column])
+
+print()
+print(H)
+
