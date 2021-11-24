@@ -191,61 +191,61 @@ def parity(lista):
     return lista
         
 #%%
-# n=3
-# s = to_bs(to_num([1,1,1]),n)
-
-# g=[]
-# a={} ;
-# s = [0,0,0]; u = to_num(s) ; coef=1 ; a[u]=coef; 
-# g.append(a)
-# a={} ; 
-# s = [1,0,0]; u = to_num(s) ; coef=1/np.sqrt(2) ; a[u]=coef; 
-# s = [0,0,1]; u = to_num(s) ; coef=1/np.sqrt(2) ; a[u]=coef;
-# g.append(a)
-# # a={} ; 
-# # s = [1,0,0]; u = to_num(s) ; coef=1/np.sqrt(2) ; a[u]=coef; 
-# # s = [0,0,1]; u = to_num(s) ; coef=-1/np.sqrt(2) ; a[u]=coef;
-# # g.append(a)
-# a={} ; 
-# s = [0,1,0]; u = to_num(s) ; coef=1 ; a[u]=coef; 
-# g.append(a)
-# a={} ; 
-# s = [1,1,0]; u = to_num(s) ; coef=1/np.sqrt(2) ; a[u]=coef; 
-# s = [0,1,1]; u = to_num(s) ; coef=1/np.sqrt(2) ; a[u]=coef;
-# g.append(a)
-# a={} ; 
-# s = [1,0,1]; u = to_num(s) ; coef=1 ; a[u]=coef; 
-# g.append(a)
-# a={} ;
-# s = [1,1,1]; u = to_num(s) ; coef=1 ; a[u]=coef; 
-# g.append(a)
-# # a={} ; 
-# # s = [1,1,0]; u = to_num(s) ; coef=1/np.sqrt(2) ; a[u]=coef; 
-# # s = [0,1,1]; u = to_num(s) ; coef=-1/np.sqrt(2) ; a[u]=coef;
-# # g.append(a)
-
-
-
-# express(g,n)
-
-#%%
-n=2
+n=3
+s = to_bs(to_num([1,1,1]),n)
 
 g=[]
 a={} ;
-s = [0,0]; u = to_num(s) ; coef=1 ; a[u]=coef; 
+s = [0,0,0]; u = to_num(s) ; coef=1 ; a[u]=coef; 
 g.append(a)
 a={} ; 
-s = [1,0]; u = to_num(s) ; coef=1/np.sqrt(2) ; a[u]=coef; 
-s = [0,1]; u = to_num(s) ; coef=1/np.sqrt(2) ; a[u]=coef;
+s = [1,0,0]; u = to_num(s) ; coef=1/np.sqrt(2) ; a[u]=coef; 
+s = [0,0,1]; u = to_num(s) ; coef=1/np.sqrt(2) ; a[u]=coef;
+g.append(a)
+# a={} ; 
+# s = [1,0,0]; u = to_num(s) ; coef=1/np.sqrt(2) ; a[u]=coef; 
+# s = [0,0,1]; u = to_num(s) ; coef=-1/np.sqrt(2) ; a[u]=coef;
+# g.append(a)
+a={} ; 
+s = [0,1,0]; u = to_num(s) ; coef=1 ; a[u]=coef; 
+g.append(a)
+a={} ; 
+s = [1,1,0]; u = to_num(s) ; coef=1/np.sqrt(2) ; a[u]=coef; 
+s = [0,1,1]; u = to_num(s) ; coef=1/np.sqrt(2) ; a[u]=coef;
+g.append(a)
+a={} ; 
+s = [1,0,1]; u = to_num(s) ; coef=1 ; a[u]=coef; 
 g.append(a)
 a={} ;
-s = [1,1]; u = to_num(s) ; coef=1 ; a[u]=coef; 
+s = [1,1,1]; u = to_num(s) ; coef=1 ; a[u]=coef; 
 g.append(a)
+# a={} ; 
+# s = [1,1,0]; u = to_num(s) ; coef=1/np.sqrt(2) ; a[u]=coef; 
+# s = [0,1,1]; u = to_num(s) ; coef=-1/np.sqrt(2) ; a[u]=coef;
+# g.append(a)
 
 
 
 express(g,n)
+
+#%%
+# n=2
+
+# g=[]
+# a={} ;
+# s = [0,0]; u = to_num(s) ; coef=1 ; a[u]=coef; 
+# g.append(a)
+# a={} ; 
+# s = [1,0]; u = to_num(s) ; coef=1/np.sqrt(2) ; a[u]=coef; 
+# s = [0,1]; u = to_num(s) ; coef=1/np.sqrt(2) ; a[u]=coef;
+# g.append(a)
+# a={} ;
+# s = [1,1]; u = to_num(s) ; coef=1 ; a[u]=coef; 
+# g.append(a)
+
+
+
+# express(g,n)
 #%%
 
 # =============================================================================
@@ -290,20 +290,43 @@ for i,a in enumerate(g[:-1]):
 
 def Xonu(u,n):
     s = to_bs(u,n);
-    sp=(np.array(s)+1)%2#np.abs(np.array(s)-1)  
-    up = to_num(sp)
-    return up
+    ups = []
+    for i in range(len(s)):
+        sp = s.copy()
+        # print()
+        # print(sp)
+        sp[i]=(s[i]+1)%2
+        # print(sp)
+        up = to_num(sp)
+        ups.append(up)
+    return ups
 
 def Xona(a,n): 
     
     ap={}
+    
     for u,coef in a.items():
         
-        up = Xonu(u,n)
-        
-        ap[up] = coef
-        
+        ups = Xonu(u,n)
+        # print(ups)
+        for up in ups:
+            if not (up in ap.keys()):
+                ap[up] = coef
+            else:
+                ap[up] += coef
+    # print(proy(ap,ap))
     return ap
+
+# def Xona(a,n): 
+    
+#     ap={}
+#     for u,coef in a.items():
+        
+#         ups = Xonu(u,n)
+        
+#         ap[up] = coef
+        
+#     return ap
 
 
 #%%
@@ -362,7 +385,7 @@ def ZZona(a,n): #ASSUMES NN
                 coef-=1
                 
         ap[u] = coef*coef0
-
+        
     return ap
     
 
@@ -384,27 +407,28 @@ for row in range(dimg):
     # row = row-1
     for column in range(dimg):
         # column = column-1
-        print(row, column)
-        print("\nrow")
-        print(express([g[row]],n))
-        print("\ncolumn")
-        print(express([g[column]],n))
+        # print(row, column)
+        # print("\nrow")
+        # print(express([g[row]],n))
+        # print("\ncolumn")
+        # print(express([g[column]],n))
         H0 = suma(Xona(g[column],n),Zona(g[column],n))
-        print("\nXona")
-        print(express([Xona(g[column],n)],n))
-        print("\nZona")
-        print(express([Zona(g[column],n)],n))
-        print("\nH0")
-        print(express([H0],n))
+        # print("\nXona")
+        # print(express([Xona(g[column],n)],n))
+        # print("\nZona")
+        # print(express([Zona(g[column],n)],n))
+        # print("\nH0")
+        # print(express([H0],n))
         H1 = suma(H0,ZZona(g[column],n))
-        print("\nZZona")
-        print(express([ZZona(g[column],n)],n))
-        print("\nH1")
-        print(express([H1],n))
+        # print("\nZZona")
+        # print(express([ZZona(g[column],n)],n))
+        # print("\nH1")
+        # print(express([H1],n))
         H[row, column] = proy(g[row], H1)
-        print('\nH')
-        print(H[row,column])
+        # print('\nH')
+        # print(H[row,column])
 
-print()
+# print()
 print(H)
 
+Hdic = H
