@@ -11,128 +11,20 @@ from qutip import Qobj
 import numpy as np
 from itertools import product
 
+def a_can(n,i):
+    dim = 2**n
+    if i < dim:
+        a = {};
+        a[i-1] = 1
+    return a
 
-def can_bas(N,i):
-    e = np.zeros(N)
-    e[i] = 1.0
-    return e
-
-def fU(N, J, hx, hz):
-    
-    # construct the spin (super)operators for each site
-    s_ops = [sigmax(), sigmay(), sigmaz()]
-    
-    sx_list = []
-    sy_list = []
-    sz_list = []
-    
-    s_lists = [sx_list, sy_list, sz_list]
-
-    for n in range(N):
-        op_list = [qeye(2) for m in range(N)]
-
-        for s_op, s_list in zip(s_ops, s_lists):
-            op_list[n] = s_op
-            s_list.append(tensor(op_list))
-    
-    # # define the hamiltonians
-    H0 = fH0(N, hx, hz, sx_list, sz_list)
-    H1 = fH1(N, J, sz_list)
-    
-    U = (-1j*H1).expm()*(-1j*H0).expm()
-    
-    return U
-
-def Sj(N, j='z'):
-    s_list = []
-    for n in range(N):
-        op_list = []
-        for m in range(N):
-            op_list.append(qeye(2))
-        if j == 'z':
-            op_list[n] = sz
-        elif j == 'x':
-            op_list[n] = sx
-        elif j == 'y':
-            op_list[n] = sy
-        s_list.append(tensor(op_list))
-    return sum(s_list)
-
-def fH0(N, hx, hz, sx_list, sz_list):
-    
-    # construct the hamiltonian
-    H = 0
-
-    # energy splitting terms
-    for n in range(N):
-        H += hz[n] * sz_list[n]
-        
-    for n in range(N):
-        H += hx[n] * sx_list[n]
-   
-    return H
-
-def fH1(N, J, sz_list):
-            
-    # construct the hamiltonian
-    H = 0
-    
-    # interaction terms
-    for n in range(N):
-        H += J[n] * 0.5 * sz_list[n] * sz_list[(n+1)%N]
-    
-    return H
-
-#%%
-
-# define parameters of Heisenberg chain with inclined field 
-n = 2
-dim = 2**n
-B = 1.4
-J = 1
-hx = B*np.ones(n)
-hz = B*np.ones(n)
-Jz = J*np.ones(n)
-
-j = J
-x = np.mean(hx)
-z = np.mean(hz)
-
-start_time = time()
-# let's try it
-
-# H = TFIM(N, hx, hz, Jz)
-U = fU(n, Jz, hx, hz)
-
-A = Sj(n, j='x')#/N
+def a_prod_esc(a,k):
+    for key in a.keys():
+        a[key] *= k
+    return a
 
 
-
-#%% separate symmetries (2nd option)
-start_time = time()
-e_basis = [Qobj(can_bas(dim,i)) for i in range(dim)]
-par_basis_ones = np.zeros((dim,dim), dtype=np.complex_)
-for i in range(dim):
-    e_basis[i].dims = [[2 for i in range(n)], [1]]
-    par_basis_ones[i] = (1/2*(e_basis[i] + e_basis[i].permute(np.arange(0,n)[::-1]))).data.toarray()[:,0]
-    norma = np.linalg.norm(par_basis_ones[i])
-    if norma != 0:
-        par_basis_ones[i] = par_basis_ones[i]/norma
-    par = par_basis_ones[i].T@par_basis_ones[i]
-#    print(par)
-par_basis_ones = np.unique(par_basis_ones, axis=1)
-#print(par_basis_ones[:,::-1])
-bas = par_basis_ones
-A_red = bas.conj().T@A.data.toarray()@bas
-U_red = bas.conj().T@U.data.toarray()@bas
-#print(U_red)
-print(f"\n Separate parity eigenstates --- {time() - start_time} seconds ---" )
-
-#%%
-
-print(bas.shape)
-
-#%%
+#
 ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyz"
   
 def decode(s):
@@ -189,79 +81,44 @@ def parity(lista):
         
     for i in range(imax): lista = swapPositions(lista, i, L-1-i)
     return lista
-        
-#%%
-n=3
-s = to_bs(to_num([1,1,1]),n)
+    
+def comp_to_a(vec):
+    indx = np.nonzero(vec)
+    norm = len(indx[0])
+    coef = 1/np.sqrt(norm)
+    a = {};
+    for ind in indx[0]:
+        a[ind-1] = coef
+    return a
 
-g=[]
-a={} ;
-s = [0,0,0]; u = to_num(s) ; coef=1 ; a[u]=coef; 
-g.append(a)
-a={} ; 
-s = [1,0,0]; u = to_num(s) ; coef=1/np.sqrt(2) ; a[u]=coef; 
-s = [0,0,1]; u = to_num(s) ; coef=1/np.sqrt(2) ; a[u]=coef;
-g.append(a)
-# a={} ; 
-# s = [1,0,0]; u = to_num(s) ; coef=1/np.sqrt(2) ; a[u]=coef; 
-# s = [0,0,1]; u = to_num(s) ; coef=-1/np.sqrt(2) ; a[u]=coef;
-# g.append(a)
-a={} ; 
-s = [0,1,0]; u = to_num(s) ; coef=1 ; a[u]=coef; 
-g.append(a)
-a={} ; 
-s = [1,1,0]; u = to_num(s) ; coef=1/np.sqrt(2) ; a[u]=coef; 
-s = [0,1,1]; u = to_num(s) ; coef=1/np.sqrt(2) ; a[u]=coef;
-g.append(a)
-a={} ; 
-s = [1,0,1]; u = to_num(s) ; coef=1 ; a[u]=coef; 
-g.append(a)
-a={} ;
-s = [1,1,1]; u = to_num(s) ; coef=1 ; a[u]=coef; 
-g.append(a)
-# a={} ; 
-# s = [1,1,0]; u = to_num(s) ; coef=1/np.sqrt(2) ; a[u]=coef; 
-# s = [0,1,1]; u = to_num(s) ; coef=-1/np.sqrt(2) ; a[u]=coef;
-# g.append(a)
+def proy(a1,a2): # keys son numeros entre 0 y 2^n 
+    
+    idx = list(set(a1.keys()) & set(a2.keys())) #intersection
+    
+    val = sum([a1[key]*a2[key] for key in idx])
 
+    return val
 
+# print(proy(a,ap))
 
-express(g,n)
+def suma(a1,a2): # keys son numeros entre 0 y 2^n 
+    
+    a = {};
+    
+    idx = list(set(a1.keys()) | set(a2.keys())) #intersection
+    
+    # print(idx)
+    
+    for key in idx:
+        a[key] = 0
+        if key in a1.keys():
+            a[key] += a1[key]
+        if key in a2.keys():
+            a[key] += a2[key]
 
-#%%
-# n=2
+    return a
 
-# g=[]
-# a={} ;
-# s = [0,0]; u = to_num(s) ; coef=1 ; a[u]=coef; 
-# g.append(a)
-# a={} ; 
-# s = [1,0]; u = to_num(s) ; coef=1/np.sqrt(2) ; a[u]=coef; 
-# s = [0,1]; u = to_num(s) ; coef=1/np.sqrt(2) ; a[u]=coef;
-# g.append(a)
-# a={} ;
-# s = [1,1]; u = to_num(s) ; coef=1 ; a[u]=coef; 
-# g.append(a)
-
-
-
-# express(g,n)
-#%%
-
-# =============================================================================
-# #a dic
-# #s bitstring
-# #u numerito
-# 
-# <b Mz a>
-# 
-# a=g[0]  
-# b=g[1]
-# 
-# # |a'>= Mz a>
-# =============================================================================
-
-#%%
+#
 def scalar2dic(k,a):     return {key:a[key]*k for key in a.keys()}
 
 def Zona(a,n): 
@@ -276,17 +133,7 @@ def Zona(a,n):
         ap[u] = nz*coef
         
     return ap
-        
-#%% Z
-
-for i,a in enumerate(g[:-1]):
-    #|a'>= Mz a>
-    ap = Zona(a,n)
-    express([a,ap],n)
-   
-    print('\n\n')
-    
-#%% X
+# X
 
 def Xonu(u,n):
     s = to_bs(u,n);
@@ -317,60 +164,8 @@ def Xona(a,n):
     # print(proy(ap,ap))
     return ap
 
-# def Xona(a,n): 
-    
-#     ap={}
-#     for u,coef in a.items():
-        
-#         ups = Xonu(u,n)
-        
-#         ap[up] = coef
-        
-#     return ap
-
-
-#%%
-for i,a in enumerate(g):
-    #|a'>= Mz a>
-    ap = Xona(a,n)
-    express([a,ap],n)
-   
-    print('\n\n')
-    
-#%%
-
-def proy(a1,a2): # keys son numeros entre 0 y 2^n 
-    
-    idx = list(set(a1.keys()) & set(a2.keys())) #intersection
-    
-    val = sum([a1[key]*a2[key] for key in idx])
-
-    return val
-
-print(proy(a,ap))
-
-def suma(a1,a2): # keys son numeros entre 0 y 2^n 
-    
-    a = {};
-    
-    idx = list(set(a1.keys()) | set(a2.keys())) #intersection
-    
-    # print(idx)
-    
-    for key in idx:
-        a[key] = 0
-        if key in a1.keys():
-            a[key] += a1[key]
-        if key in a2.keys():
-            a[key] += a2[key]
-
-    return a
-
-print(express([suma(g[0],g[0])],n))
-#%% ZZ
 
 def ZZona(a,n): #ASSUMES NN
-    
 
     ap={}
     for u,coef0 in a.items():
@@ -387,18 +182,141 @@ def ZZona(a,n): #ASSUMES NN
         ap[u] = coef*coef0
         
     return ap
-    
+#%% separate symmetries (1st option)
+
+
+# define parameters of Heisenberg chain with inclined field 
+n = 8
+dim = 2**n
+
+start_time = time()
+g_can = [a_can(n,i) for i in range(0, dim)]
+g_par = []
+for i in range(dim):
+    s = to_bs(list(set(g_can[i].keys()))[0], n)
+    s_per = parity(s)
+    a_per = {}; u_per = to_num(s_per); a_per[u_per] = 1
+    a_par = suma(g_can[i], a_per); a_par = a_prod_esc(a_par, 1/2); a_par = a_prod_esc(a_par, 1/np.sqrt(proy(a_par,a_par)))
+    g_par.append(a_par)
+
+g=[]
+
+for i in g_par:
+    if i not in g:
+        g.append(i)  
 
 #%%
+# n=3
+# s = to_bs(to_num([1,1,1]),n)
 
-for i,a in enumerate(g):
-    #|a'>= Mz a>
-    ap = ZZona(a,n)
-    express([a,ap],n)
+# g=[]
+# a={} ;
+# s = [0,0,0]; u = to_num(s) ; coef=1 ; a[u]=coef; 
+# g.append(a)
+# a={} ; 
+# s = [1,0,0]; u = to_num(s) ; coef=1/np.sqrt(2) ; a[u]=coef; 
+# s = [0,0,1]; u = to_num(s) ; coef=1/np.sqrt(2) ; a[u]=coef;
+# g.append(a)
+# # a={} ; 
+# # s = [1,0,0]; u = to_num(s) ; coef=1/np.sqrt(2) ; a[u]=coef; 
+# # s = [0,0,1]; u = to_num(s) ; coef=-1/np.sqrt(2) ; a[u]=coef;
+# # g.append(a)
+# a={} ; 
+# s = [0,1,0]; u = to_num(s) ; coef=1 ; a[u]=coef; 
+# g.append(a)
+# a={} ; 
+# s = [1,1,0]; u = to_num(s) ; coef=1/np.sqrt(2) ; a[u]=coef; 
+# s = [0,1,1]; u = to_num(s) ; coef=1/np.sqrt(2) ; a[u]=coef;
+# g.append(a)
+# a={} ; 
+# s = [1,0,1]; u = to_num(s) ; coef=1 ; a[u]=coef; 
+# g.append(a)
+# a={} ;
+# s = [1,1,1]; u = to_num(s) ; coef=1 ; a[u]=coef; 
+# g.append(a)
+# # a={} ; 
+# # s = [1,1,0]; u = to_num(s) ; coef=1/np.sqrt(2) ; a[u]=coef; 
+# # s = [0,1,1]; u = to_num(s) ; coef=-1/np.sqrt(2) ; a[u]=coef;
+# # g.append(a)
+
+
+
+# express(g,n)
+
+#%%
+# n=2
+
+# g=[]
+# a={} ;
+# s = [0,0]; u = to_num(s) ; coef=1 ; a[u]=coef; 
+# g.append(a)
+# a={} ; 
+# s = [1,0]; u = to_num(s) ; coef=1/np.sqrt(2) ; a[u]=coef; 
+# s = [0,1]; u = to_num(s) ; coef=1/np.sqrt(2) ; a[u]=coef;
+# g.append(a)
+# a={} ;
+# s = [1,1]; u = to_num(s) ; coef=1 ; a[u]=coef; 
+# g.append(a)
+
+
+
+# express(g,n)
+#%% Prueba
+# g = []
+# for col in range(bas.shape[1]):
+#     a = comp_to_a(bas[:,col])
+#     g.append(a)
+#%%
+
+# =============================================================================
+# Notación
+# #a dic
+# #s bitstring
+# #u numerito
+# 
+# <b Z a>
+# 
+# a=g[0]  
+# b=g[1]
+# 
+# # |a'>= Mz a>
+# =============================================================================
+
+
+        
+# Z prueba
+
+# for i,a in enumerate(g[:-1]):
+#     #|a'>= Mz a>
+#     ap = Zona(a,n)
+#     express([a,ap],n)
    
-    print('\n\n')
+#     print('\n\n')
+    
+
+
+
+# X prueba
+# 
+# for i,a in enumerate(g):
+#     #|a'>= Mz a>
+#     ap = Xona(a,n)
+#     express([a,ap],n)
+   
+#     print('\n\n')
+    
+
+# ZZ prueba
+
+# for i,a in enumerate(g):
+#     #|a'>= Mz a>
+#     ap = ZZona(a,n)
+#     express([a,ap],n)
+   
+#     print('\n\n')
 
 #%% Create hamiltonian in parity subspace
+t0 = time()
 dimg = len(g)
 
 H = np.zeros((dimg, dimg), dtype=np.complex_)
@@ -432,3 +350,5 @@ for row in range(dimg):
 print(H)
 
 Hdic = H
+print(f'Tiempo Hamiltoniano: {time()-t0} s')
+np.savez(f'TFIM_N{n}_par1.npz', H = H)
