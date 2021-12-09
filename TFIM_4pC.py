@@ -166,27 +166,27 @@ def can_bas(N,i):
     e[i] = 1.0
     return e
 
-@jit(nopython=True, parallel=True, fastmath = True)
+@jit(nopython=True)#, parallel=True, fastmath = True)
 def Evolucion_numpy(B_t, U, Udag):
     res = Udag@B_t@U
     return res
 
-@jit(nopython=True, parallel=True, fastmath = True)
+@jit(nopython=True)#, parallel=True, fastmath = True)
 def O1_numpy_Tinf(A, B_t):
     O1 = np.trace(B_t@A@B_t@A)
     return O1
 
-@jit(nopython=True, parallel=True, fastmath = True)
+@jit(nopython=True)#, parallel=True, fastmath = True)
 def O2_numpy_Tinf(A, B_t):
     O2 = np.trace(B_t@B_t@A@A)
     return O2
 
-@jit(nopython=True, parallel=True, fastmath = True)
+@jit(nopython=True)#, parallel=True, fastmath = True)
 def A_average(A, dims):
     res = np.trace(A)**2/dims
     return res
 
-@jit(nopython=True, parallel=True, fastmath = True)
+@jit(nopython=True)#, parallel=True, fastmath = True)
 def C_t_commutator_numpy_Tinf(A, B_t):
     com = B_t@A - A@B_t
     C_t = np.trace(com.H@com)/N
@@ -285,7 +285,7 @@ def Evolution4p_U_KI_Tinf(U, time_lim, N, A, B):
     flag = '4p_U_KI_with_Tinf_state'
     return [O1s, O2s, Cs, flag]
 
-# @jit(nopython=True, parallel=True, fastmath = True)
+# @jit(nopython=True)#, parallel=True, fastmath = True)
 # Calcultes r parameter in the 10% center of the energy "ener" spectrum. If plotadjusted = True, returns the magnitude adjusted to Poisson = 0 or WD = 1
 def r_chaometer(ener,plotadjusted):
     ra = np.zeros(len(ener)-2)
@@ -304,11 +304,11 @@ def histo_level_spacing(ener):
     spac = np.diff(ener)
     print('espaciado',spac)
     plt.figure(figsize=(16,8))
-    plt.hist(spac, density=True)#, bins='auto')
+    plt.hist(spac, normed=True)#, bins='auto')
     plt.xlabel('level spacing')
     return 
 
-# @jit(nopython=True, parallel=True, fastmath = True)
+# @jit(nopython=True)#, parallel=True, fastmath = True)
 def diagU_r(U_sub):
     ener = np.linalg.eigvals(U_sub)
     # ener = np.sort(ener)
@@ -320,7 +320,7 @@ def diagU_r(U_sub):
 
 #%% define operators
 
-N = 8
+N = 10
 B = 1
 J = 1
 
@@ -463,7 +463,7 @@ for i,z in enumerate(zs):
     ax[row,column].set_ylim(0,4);
     ax[row,column].grid();
 # plt.show()
-plt.savefig('subfigure_O1s_4pC_4p_comp_KI_with_Tinf_state'+f'_time_lim{time_lim}_J{J:.2f}_hx{x:.2f}_hz{z:.2f}_basis_size{N}'+operators+'.pdf', dpi=100)#_AX_BX
+#plt.savefig('subfigure_O1s_4pC_4p_comp_KI_with_Tinf_state'+f'_time_lim{time_lim}_J{J:.2f}_hx{x:.2f}_hz{z:.2f}_basis_size{N}'+operators+'.pdf', dpi=100)#_AX_BX
 
 #%% plot 4pC
 #subfigures with H or with U
@@ -495,7 +495,7 @@ for i,theta in enumerate(thetas):
     # ax[1].legend(loc='best')
     ax[1].grid()
 # plt.show()
-plt.savefig('short_time_HorU_O1s_4pC_4p_comp_KI_with_Tinf_state'+f'_time_lim{time_lim}_J{J:.2f}_hx{x:.2f}_hz{z:.2f}_basis_size{N}'+operators+'.png', dpi=80)#_AX_BX
+#plt.savefig('short_time_HorU_O1s_4pC_4p_comp_KI_with_Tinf_state'+f'_time_lim{time_lim}_J{J:.2f}_hx{x:.2f}_hz{z:.2f}_basis_size{N}'+operators+'.png', dpi=80)#_AX_BX
 
 #%% fit exponential decay
 pendientes = np.zeros(len(zs)-1)
@@ -545,20 +545,23 @@ for i,z in enumerate(zs[1:]):
     ax[row,column].grid();
 
     # plt.show()
-plt.savefig('FIT_O1s_4pC_4p_comp_KI_with_Tinf_state'+f'_time_lim{time_lim}_J{J:.2f}_hx{x:.2f}_hz{z:.2f}_basis_size{N}'+operators+'.png', dpi=80)#_AX_BX
+#plt.savefig('FIT_O1s_4pC_4p_comp_KI_with_Tinf_state'+f'_time_lim{time_lim}_J{J:.2f}_hx{x:.2f}_hz{z:.2f}_basis_size{N}'+operators+'.png', dpi=80)#_AX_BX
 #%%
-plt.figure()
-plt.plot(thetas[1:],pendientes, '^-r')
+normed_slope = np.abs(pendientes)/max(np.abs(pendientes))
+plt.figure(figsize=(16,8))
+plt.plot(thetas[1:],normed_slope, '^-b', ms=0.8, lw=0.8, label='slope')
 plt.xlabel(r'$\theta$')
 plt.ylabel(r'$\alpha$ (slope)')
 plt.grid()
-plt.savefig(f'N{N}_slope_vs_hz.png', dpi=80)
-#%%
-plt.figure()
-plt.plot(thetas,rs, '^-r')
-plt.xlabel(r'$\theta$')
-plt.ylabel(r'$r$ (chaometer) ')
+#plt.savefig(f'N{N}_slope_vs_hz.png', dpi=80)
+#
+#plt.figure()
+plt.plot(thetas,rs, '^-r', ms=0.8, lw=0.8, label=r'r')
+#plt.xlabel(r'$\theta$')
+#plt.ylabel(r'$r$ (chaometer) ')
 # plt.ylim(-0.1,1.1)
-plt.grid()
-plt.savefig(f'N{N}_r_vs_hz.png', dpi=80)
+#plt.grid()
+plt.legend(loc='best')
+#plt.savefig(f'N{N}_r_vs_hz.png', dpi=80)
+plt.savefig(f'N{N}_r_y_slope_vs_hz.png', dpi=80)
 
