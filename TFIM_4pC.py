@@ -312,14 +312,14 @@ def diagU_r(U_sub):
 
 #%% define operators
 
-N = 8
+N = 12
 B = 1
 J = 1
 
 x = 1
 # z = 1
 
-time_lim = 50
+time_lim = 10
 
 def TFIM_O1_chaos_parameter(N, B, J, theta, x, z, time_lim):
         
@@ -395,8 +395,10 @@ def TFIM_O1_chaos_parameter(N, B, J, theta, x, z, time_lim):
     
     return [[O1s_H, O2s_H, Cs_H], [O1s_U, O2s_U, Cs_U], r_normed_H, r_normed_U]
 
-zs = np.linspace(0.01,2.6,100)
-thetas = np.linspace(0.001, np.pi/2+0.001,100)
+points = 10
+
+zs = np.linspace(0.01,2.6,points)
+thetas = np.linspace(0.001, np.pi/2+0.001,points)
 z = 1
 
 O1_H_array, O2_H_array, Cs_H_array = np.zeros((time_lim, len(zs))), np.zeros((time_lim, len(zs))), np.zeros((time_lim, len(zs)))
