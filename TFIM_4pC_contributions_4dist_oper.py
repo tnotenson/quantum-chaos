@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Mon Dec  6 10:40:13 2021
+Created on Mon Dec 13 16:21:45 2021
 
 @author: tomasnotenson
 """
+
 import matplotlib.pyplot as plt
 import numpy as np
 from qutip import *
@@ -13,10 +14,11 @@ from tqdm import tqdm # customisable progressbar decorator for iterators
 from numba import jit
 # importing "cmath" for complex number operations
 from cmath import phase
-# plt.rcParams.update({
-# "text.usetex": True,
-# "font.family": "sans-serif",
-# "font.sans-serif": ["Helvetica"], "font.size": 12})
+
+plt.rcParams.update({
+"text.usetex": True,
+"font.family": "sans-serif",
+"font.sans-serif": ["Helvetica"], "font.size": 12})
 
 # define usefull one body operators 
 sx=sigmax()
@@ -145,38 +147,50 @@ def Sj(N, j='z'):
         s_list.append(tensor(op_list))
     return sum(s_list)
 
+def sigmai_j(N,i,j='z'):
+
+    op_list = [si for m in range(N)]
+
+    if j == 'z':
+        op_list[i] = sz
+    elif j == 'x':
+        op_list[i] = sx
+    elif j == 'y':
+        op_list[i] = sy
+    return tensor(op_list)
+
 def can_bas(N,i):
     e = np.zeros(N)
     e[i] = 1.0
     return e
 
-@jit(nopython=True)#, parallel=True, fastmath = True)
+@jit(nopython=True, parallel=True, fastmath = True)
 def Evolucion_numpy(B_t, U, Udag):
     res = Udag@B_t@U
     return res
 
-@jit(nopython=True)#, parallel=True, fastmath = True)
-def O1_numpy_Tinf(A, B_t):
-    O1 = np.trace(B_t@A@B_t@A)
+@jit(nopython=True, parallel=True, fastmath = True)
+def O1_4do_numpy_Tinf(A, B_t, C, D_t):
+    O1 = np.trace(B_t@C@D_t@A)
     return O1
 
-@jit(nopython=True)#, parallel=True, fastmath = True)
-def O2_numpy_Tinf(A, B_t):
-    O2 = np.trace(B_t@B_t@A@A)
+@jit(nopython=True, parallel=True, fastmath = True)
+def O2_4do_numpy_Tinf(A, B_t, C, D_t):
+    O2 = np.trace(B_t@D_t@A@C)
     return O2
 
-@jit(nopython=True)#, parallel=True, fastmath = True)
+@jit(nopython=True, parallel=True, fastmath = True)
 def A_average(A, dims):
     res = np.trace(A)**2/dims
     return res
 
-@jit(nopython=True)#, parallel=True, fastmath = True)
+@jit(nopython=True, parallel=True, fastmath = True)
 def C_t_commutator_numpy_Tinf(A, B_t):
     com = B_t@A - A@B_t
     C_t = np.trace(com.H@com)/N
     return C_t
 
-def Evolution4p_H_KI_Tinf(H, time_lim, N, A, B):
+def Evolution4do_4p_H_KI_Tinf(H, time_lim, N, A, B, C, D):
     
     start_time = time() 
     
@@ -196,23 +210,24 @@ def Evolution4p_H_KI_Tinf(H, time_lim, N, A, B):
         
         if i==0:
             B_t = B
+            D_t = D
         else:
 
             # qutip evolution
             # B_t = B_t.transform(U.dag())
+            # D_t = D_t.transform(U.dag())
             # numpy evolution
             B_t = Evolucion_numpy(B_t, U, Udag)
+            D_t = Evolucion_numpy(D_t, U, Udag)
             
-        dim = A.shape[0]        
+        dim = A.shape[0]
         # compute 4-point correlator with qutip
-        # O1 = (B_t*A*B_t*A).tr()
-        # O2 = (B_t**2*A**2).tr()
-                    
-        # C_t = -2*( O1 - O2 )/dim
+        # O1 = (B_t*C*D_t*A).tr()
+        # O2 = (B_t*D_t*A*C).tr()
         
         # compute 4-point correlator with numpy
-        O1 = O1_numpy_Tinf(A, B_t)
-        O2 = O2_numpy_Tinf(A, B_t)
+        O1 = O1_4do_numpy_Tinf(A, B_t, C, D_t)
+        O2 = O2_4do_numpy_Tinf(A, B_t, C, D_t)
         
         C_t = -2*(O1 - O2)/dim
 
@@ -225,7 +240,7 @@ def Evolution4p_H_KI_Tinf(H, time_lim, N, A, B):
     flag = '4p_H_KI_with_Tinf_state'
     return [O1s, O2s, Cs, flag]
 
-def Evolution4p_U_KI_Tinf(U, time_lim, N, A, B):
+def Evolution4do_4p_U_KI_Tinf(U, time_lim, N, A, B, C, D):
     
     start_time = time() 
     
@@ -242,21 +257,24 @@ def Evolution4p_U_KI_Tinf(U, time_lim, N, A, B):
         
         if i==0:
             B_t = B
+            D_t = D
         else:
 
             # qutip evolution
             # B_t = B_t.transform(U.dag())
+            # D_t = D_t.transform(U.dag())
             # numpy evolution
             B_t = Evolucion_numpy(B_t, U, Udag)
+            D_t = Evolucion_numpy(D_t, U, Udag)
             
         dim = A.shape[0]
         # compute 4-point correlator with qutip
-        # O1 = (B_t*A*B_t*A).tr()
-        # O2 = (B_t**2*A**2).tr()
+        # O1 = (B_t*C*D_t*A).tr()
+        # O2 = (B_t*D_t*A*C).tr()
         
         # compute 4-point correlator with numpy
-        O1 = O1_numpy_Tinf(A, B_t)
-        O2 = O2_numpy_Tinf(A, B_t)
+        O1 = O1_4do_numpy_Tinf(A, B_t, C, D_t)
+        O2 = O2_4do_numpy_Tinf(A, B_t, C, D_t)
         
         C_t = -2*(O1 - O2)/dim
 
@@ -269,7 +287,7 @@ def Evolution4p_U_KI_Tinf(U, time_lim, N, A, B):
     flag = '4p_U_KI_with_Tinf_state'
     return [O1s, O2s, Cs, flag]
 
-# @jit(nopython=True)#, parallel=True, fastmath = True)
+# @jit(nopython=True, parallel=True, fastmath = True)
 # Calcultes r parameter in the 10% center of the energy "ener" spectrum. If plotadjusted = True, returns the magnitude adjusted to Poisson = 0 or WD = 1
 def r_chaometer(ener,plotadjusted):
     ra = np.zeros(len(ener)-2)
@@ -292,15 +310,7 @@ def histo_level_spacing(ener):
     plt.xlabel('level spacing')
     return 
 
-# @jit(nopython=True)#, parallel=True, fastmath = True)
-def diagH_r(H_sub):
-    ener = np.linalg.eigvals(H_sub)
-    ener = np.sort(ener)
-    histo_level_spacing(ener)
-    r_normed = r_chaometer(ener, plotadjusted=True) 
-    return r_normed
-
-# @jit(nopython=True)#, parallel=True, fastmath = True)
+# @jit(nopython=True, parallel=True, fastmath = True)
 def diagU_r(U_sub):
     ener = np.linalg.eigvals(U_sub)
     # ener = np.sort(ener)
@@ -309,7 +319,6 @@ def diagU_r(U_sub):
     histo_level_spacing(fases)
     r_normed = r_chaometer(fases, plotadjusted=True) 
     return r_normed
-
 #%% define operators
 
 N = 8
@@ -317,16 +326,17 @@ B = 1
 J = 1
 
 x = 1
-# z = 1
+z = 1
 
 time_lim = 50
 
-def TFIM_O1_chaos_parameter(N, B, J, theta, x, z, time_lim):
+
+def TFIM_O1_contributions(N, i, k, m, n, B, J, x, z, time_lim):
         
     # define parameters of Heisenberg chain with inclined field 
     
-    hx = np.sin(theta)*x*B*np.ones(N)
-    hz = np.cos(theta)*z*B*np.ones(N)
+    hx = x*B*np.ones(N)
+    hz = z*B*np.ones(N)
     Jz = J*np.ones(N)
     
     start_time = time()
@@ -337,7 +347,10 @@ def TFIM_O1_chaos_parameter(N, B, J, theta, x, z, time_lim):
     ######## U evolution ##########
     U = fU(N, Jz, hx, hz)
     
-    A = Sj(N, j='x')#/N
+    A = sigmai_j(N, i, j='x')
+    B = sigmai_j(N, k, j='x')
+    C = sigmai_j(N, m, j='x')
+    D = sigmai_j(N, n, j='x')
     
     op = 'X'
     
@@ -353,8 +366,8 @@ def TFIM_O1_chaos_parameter(N, B, J, theta, x, z, time_lim):
     
     n_mone, n_one = np.unique(ep, return_counts = True)[1]
     
-    C = np.column_stack([vec.data.toarray() for vec in epvec])
-    Cinv = np.linalg.inv(C)
+    CB = np.column_stack([vec.data.toarray() for vec in epvec])
+    Cinv = np.linalg.inv(CB)
     
     ######## H evolution ##########
     
@@ -366,6 +379,9 @@ def TFIM_O1_chaos_parameter(N, B, J, theta, x, z, time_lim):
     # print(U_par)
     
     A_par = A.transform(Cinv)
+    B_par = B.transform(Cinv)
+    C_par = C.transform(Cinv)
+    D_par = D.transform(Cinv)
     
     ######## H evolution ##########
     H_sub = H_par.extract_states(np.arange(n_mone,n_one+n_mone))
@@ -376,201 +392,184 @@ def TFIM_O1_chaos_parameter(N, B, J, theta, x, z, time_lim):
     U_sub = np.matrix(U_sub)
     
     A_sub = A_par.extract_states(np.arange(n_mone,n_one+n_mone)).data.toarray()
+    B_sub = B_par.extract_states(np.arange(n_mone,n_one+n_mone)).data.toarray()
+    C_sub = C_par.extract_states(np.arange(n_mone,n_one+n_mone)).data.toarray()
+    D_sub = D_par.extract_states(np.arange(n_mone,n_one+n_mone)).data.toarray()
     print(f"\n Separate parity eigenstates --- {time() - start_time} seconds ---" )
     
-    r_normed_H = diagH_r(H_sub)
-    r_normed_U = diagU_r(U_sub)
+    r_normed = diagU_r(U_sub)
     
     start_time = time()
     #
     
-    O1s_U, O2s_U, Cs_U, flag = Evolution4p_U_KI_Tinf(U_sub, time_lim, N, A_sub, A_sub)
-    np.savez('4pC_'+flag+f'_time_lim{time_lim}_J{J:.2f}_hx{x:.2f}_hz{z:.2f}_basis_size{N}'+operators+'.npz', O1s=O1s_U, O2s=O2s_U, Cs=Cs_U)
+    O1s_U, O2s_U, Cs_U, flag = Evolution4do_4p_U_KI_Tinf(U_sub, time_lim, N, A_sub, B_sub, C_sub, D_sub)
+    np.savez('contributions_4pC_i{i}_j{k}'+flag+f'_time_lim{time_lim}_J{J:.2f}_hx{x:.2f}_hz{z:.2f}_basis_size{N}'+operators+'.npz', O1s=O1s_U, O2s=O2s_U, Cs=Cs_U)
     
-    O1s_H, O2s_H, Cs_H, flag = Evolution4p_H_KI_Tinf(H_sub, time_lim, N, A_sub, A_sub)
-    np.savez('4pC_'+flag+f'_time_lim{time_lim}_J{J:.2f}_hx{x:.2f}_hz{z:.2f}_basis_size{N}'+operators+'.npz', O1s=O1s_H, O2s=O2s_H, Cs=Cs_H)
+    O1s_H, O2s_H, Cs_H, flag = Evolution4do_4p_H_KI_Tinf(H_sub, time_lim, N, A_sub, B_sub, C_sub, D_sub)
+    np.savez(f'contributions_4pC_i{i}_j{k}'+flag+f'_time_lim{time_lim}_J{J:.2f}_hx{x:.2f}_hz{z:.2f}_basis_size{N}'+operators+'.npz', O1s=O1s_H, O2s=O2s_H, Cs=Cs_H)
     
     
     print(f"\n Evolution 4pC --- {time() - start_time} seconds ---" )
     
-    return [[O1s_H, O2s_H, Cs_H], [O1s_U, O2s_U, Cs_U], r_normed_H, r_normed_U]
+    return [[O1s_H, O2s_H, Cs_H], [O1s_U, O2s_U, Cs_U], r_normed]
 
-zs = np.linspace(0.01,2.6,100)
-thetas = np.linspace(0.001, np.pi/2+0.001,100)
-z = 1
+i = N-1
 
-O1_H_array, O2_H_array, Cs_H_array = np.zeros((time_lim, len(zs))), np.zeros((time_lim, len(zs))), np.zeros((time_lim, len(zs)))
-O1_U_array, O2_U_array, Cs_U_array = np.zeros((time_lim, len(zs))), np.zeros((time_lim, len(zs))), np.zeros((time_lim, len(zs)))
+O1_H_array, O2_H_array, Cs_H_array = np.zeros((time_lim, N)), np.zeros((time_lim, N)), np.zeros((time_lim, N))
+O1_U_array, O2_U_array, Cs_U_array = np.zeros((time_lim, N)), np.zeros((time_lim, N)), np.zeros((time_lim, N))
 
-rs_H = np.zeros((len(zs)))
-rs_U = np.zeros((len(zs)))
+rs = np.zeros((N))
 
-for i,theta in enumerate(thetas):
-    [O1s_H, O2s_H, Cs_H], [O1s_U, O2s_U, Cs_U], r_normed_H, r_normed_U = TFIM_O1_chaos_parameter(N, B, J, theta, x, z, time_lim)
-    O1_H_array[:,i], O2_H_array[:,i], Cs_H_array[:,i] = O1s_H, O2s_H, Cs_H
-    O1_U_array[:,i], O2_U_array[:,i], Cs_U_array[:,i] = O1s_U, O2s_U, Cs_U
-    rs_H[i] = r_normed_H
-    rs_U[i] = r_normed_U
+m = 0
+n = 1
+
+for k in range(0,N):
+    [O1s_H, O2s_H, Cs_H], [O1s_U, O2s_U, Cs_U], r_normed = TFIM_O1_contributions(N, i, k, m, n, B, J, x, z, time_lim)
+    O1_H_array[:,k], O2_H_array[:,k], Cs_H_array[:,k] = O1s_H, O2s_H, Cs_H
+    O1_U_array[:,k], O2_U_array[:,k], Cs_U_array[:,k] = O1s_U, O2s_U, Cs_U
+    rs[k] = r_normed
     
 op = 'X'
 
 operators = '_A'+op+'_B'+op
-    
 #%% plot 4pC
 # subfigures with H and U
 times = np.arange(0,time_lim)
+
+multiplo = int(N/2)
+
+fig, ax = plt.subplots(2,multiplo, figsize=(32,8))
+# plt.title(r'$O_1 = \langle X(t)X\,X(t)X \rangle $ TFIM OBC N = %i hx = %.1f hz = %.1f J = %.1f '%(N,x,z,J))
+for k in range(0,N):
+    O1_H = O1_H_array[:,k]
+    O1_U = O1_U_array[:,k]
     
-# fig, ax = plt.subplots(5,5, figsize=(32,8))
-# # plt.title(r'$O_1 = \langle X(t)X\,X(t)X \rangle $ TFIM OBC N = %i hx = %.1f hz = %.1f J = %.1f '%(N,x,z,J))
-# for i,z in enumerate(zs):
-#     O1_H = O1_H_array[:,i]
-#     O1_U = O1_U_array[:,i]
+    yaxis_H = np.log10(O1_H)# - np.log10(Cs[0])
+    yaxis_U = np.log10(O1_U)# - np.log10(Cs[0])
+    if k==0:
+        row = 0     
+    resto = k%multiplo
+    if resto == 0 and k!= 0:
+        row+=1
+    column = resto
     
-#     yaxis_H = np.log10(O1_H)# - np.log10(Cs[0])
-#     yaxis_U = np.log10(O1_U)# - np.log10(Cs[0])
-#     if i < 5:
-#         row = 0
-#         column = i
-#     elif 5 <= i < 10: 
-#         row = 1
-#         column = i-5
-#     elif 10 <= i < 15: 
-#         row = 2
-#         column = i-10
-#     elif 15 <= i < 20: 
-#         row = 3
-#         column = i-15
-#     elif 20 <= i < 25: 
-#         row = 4
-#         column = i-20
-#     ax[row,column].title.set_text(f'hz = {z:.1f}')
-#     ax[row,column].plot(times, yaxis_H,':^r' , label=r'$H$');
-#     ax[row,column].plot(times, yaxis_U,':^b' , label=r'$U$');
-#     if row!=4:
-#         ax[row,column].xaxis.set_visible(False)
-#     if row==4:
-#         ax[row,column].set_xlabel('Time');
-#     if column==0:
-#         ax[row,column].set_ylabel(r'$log \left(O_1(t) \right)$');
-#     # plt.ylim(-3,0.1)
-#     # plt.legend(loc='best');
-#     # ax[row,column].set_xlim(0,20);
-#     ax[row,column].set_ylim(0,4);
-#     ax[row,column].grid();
-# # plt.show()
-# plt.savefig('subfigure_O1s_4pC_4p_comp_KI_with_Tinf_state'+f'_time_lim{time_lim}_J{J:.2f}_hx{x:.2f}_hz{z:.2f}_basis_size{N}'+operators+'.pdf', dpi=100)#_AX_BX
+    print(row, column)
+   
+    ax[row,column].title.set_text(f'j = {k}')
+    ax[row,column].plot(times, yaxis_H,':^r' , label=r'$H$');
+    ax[row,column].plot(times, yaxis_U,':^b' , label=r'$U$');
+    if row!=4:
+        ax[row,column].xaxis.set_visible(False)
+    if row==4:
+        ax[row,column].set_xlabel('Time');
+    if column==0:
+        ax[row,column].set_ylabel(r'$log \left(O_1(t) \right)$');
+    # plt.ylim(-4,0.1)
+    ax[row,column].legend(loc='best');
+    # ax[row,column].set_xlim(0,20);
+    ax[row,column].set_ylim(-4,4);
+    ax[row,column].grid();
+# plt.show()
+plt.savefig(f'subfigure_i{i}_m{m}_n{n}_O1s_4pC_4p_comp_KI_with_Tinf_state'+f'_time_lim{time_lim}_J{J:.2f}_hx{x:.2f}_hz{z:.2f}_basis_size{N}'+operators+'.pdf', dpi=100)#_AX_BX
 
 #%% plot 4pC
 #subfigures with H or with U
 # define colormap
-colors = plt.cm.jet(np.linspace(0,1,len(zs)))
+colors = plt.cm.jet(np.linspace(0,1,N))
 fig, ax = plt.subplots(2, figsize=(16,8))
 # plt.title(r'$O_1 = \langle X(t)X\,X(t)X \rangle $ TFIM OBC N = %i hx = %.1f hz = %.1f J = %.1f '%(N,x,z,J))
-for i,theta in enumerate(thetas):
-    O1_H = O1_H_array[:,i]
-    O1_U = O1_U_array[:,i]
+for k in range(0,N):
+    O1_H = O1_H_array[:,k]
+    O1_U = O1_U_array[:,k]
     
     yaxis_H = np.log10(O1_H)# - np.log10(Cs[0])
     yaxis_U = np.log10(O1_U)# - np.log10(Cs[0])
 
     
     ax[0].title.set_text('TFIM no pateado')
-    ax[0].plot(times, yaxis_H,':^r' , label=f'ang={theta:.1f}', color=colors[i], ms=0.5);
+    ax[0].plot(times, yaxis_H,':^r' , label=f'j={k}', color=colors[k], ms=0.5);
     # ax[0].set_xlabel('Time');
     ax[0].set_ylabel(r'$log \left(O_1(t) \right)$');
     # ax[0].set_xlim(0,20)
-    # ax[0].legend(loc='best')
-    ax[0].grid()
+    ax[0].legend(loc='best')
+    ax[0].grid(True)
     
     ax[1].title.set_text('TFIM pateado')
-    ax[1].plot(times, yaxis_U,':^b' , label=f'ang={theta:.1f}', color=colors[i], ms=0.5);
+    ax[1].plot(times, yaxis_U,':^b' , label=f'j={k}', color=colors[k], ms=0.5);
     ax[1].set_xlabel('Time');
     ax[1].set_ylabel(r'$log \left(O_1(t) \right)$');
     # ax[1].set_xlim(0,20)
     # ax[1].legend(loc='best')
-    ax[1].grid()
+    ax[1].grid(True)
 # plt.show()
-plt.savefig('short_time_HorU_O1s_4pC_4p_comp_KI_with_Tinf_state'+f'_time_lim{time_lim}_J{J:.2f}_hx{x:.2f}_hz{z:.2f}_basis_size{N}'+operators+'.png', dpi=80)#_AX_BX
+plt.savefig(f'HorU_i{i}_m{m}_n{n}_O1s_4pC_4p_comp_KI_with_Tinf_state'+f'_time_lim{time_lim}_J{J:.2f}_hx{x:.2f}_hz{z:.2f}_basis_size{N}'+operators+'.png', dpi=80)
+# %% fit exponential decay
+pendientes = np.zeros(N-1)
+# multiplo = int(N/2)
 
-#%% fit exponential decay
-pendientes_H = np.zeros(len(zs)-1)
-pendientes_U = np.zeros(len(zs)-1)
-# fig, ax = plt.subplots(5,5, figsize=(32,8))
-
-t_max = 9
-
-for i,z in enumerate(zs[1:]):
-    O1_H = O1_H_array[:,i]
-    O1_U = O1_U_array[:,i]
+fig, ax = plt.subplots(2,multiplo, figsize=(32,8))
+# plt.title(r'$O_1 = \langle X(t)X\,X(t)X \rangle $ TFIM OBC N = %i hx = %.1f hz = %.1f J = %.1f '%(N,x,z,J))
+for k in range(0,N):
+    # O1_H = O1_H_array[:,k]
+    O1_U = O1_U_array[:,k]
     
-    yaxis_H = np.log10(O1_H)# - np.log10(Cs[0])
+    # yaxis_H = np.log10(O1_H)# - np.log10(Cs[0])
     yaxis_U = np.log10(O1_U)# - np.log10(Cs[0])
 
-    xs = times[:t_max]
-    y = yaxis_H[:t_max]
-    yp = yaxis_U[:t_max]
+
+    xs = times[:10]
+    y = yaxis_U[:10]
     
     coef = np.polyfit(xs,y,1)
-    coefp = np.polyfit(xs,yp,1)
     poly1d_fn = np.poly1d(coef) 
-    poly1d_fn_p = np.poly1d(coefp) 
     
-    pendientes_H[i] = poly1d_fn[1]
-    pendientes_U[i] = poly1d_fn_p[1]
-    print('H',poly1d_fn[1])
-    print('U',poly1d_fn_p[1])
-    
-    # if i < 5:
-    #     row = 0
-    #     column = i
-    # elif 5 <= i < 10: 
-    #     row = 1
-    #     column = i-5
-    # elif 10 <= i < 15: 
-    #     row = 2
-    #     column = i-10
-    # elif 15 <= i < 20: 
-    #     row = 3
-    #     column = i-15
-    # elif 20 <= i < 25: 
-    #     row = 4
-    #     column = i-20
-    # ax[row,column].title.set_text(f'hz = {z:.1f}')
-    # ax[row,column].plot(xs,y, 'yo')
-    # ax[row,column].plot(xs, poly1d_fn(xs), '--k', label=f'{poly1d_fn[1]:.2f}')
-    # if row!=4:
-    #     ax[row,column].xaxis.set_visible(False)
-    # if row==4:
-    #     ax[row,column].set_xlabel('Time');
-    # if column==0:
-    #     ax[row,column].set_ylabel(r'$log \left(O_1(t) \right)$');
-    # # plt.ylim(-3,0.1)
-    # ax[row,column].legend(loc='best');
-    # # ax[row,column].set_xlim(0,20);
-    # ax[row,column].set_ylim(2,4);
-    # ax[row,column].grid();
+    pendientes[i] = poly1d_fn[1]
+    print(poly1d_fn[1])
 
-    # plt.show()
-# plt.savefig('FIT_O1s_4pC_4p_comp_KI_with_Tinf_state'+f'_time_lim{time_lim}_J{J:.2f}_hx{x:.2f}_hz{z:.2f}_basis_size{N}'+operators+'.png', dpi=80)#_AX_BX
+
+    if k==0:
+        row = 0     
+    resto = k%multiplo
+    if resto == 0 and k!= 0:
+        row+=1
+    column = resto
+    
+    print(row, column)
+   
+    ax[row,column].title.set_text(f'j = {k}')
+    # ax[row,column].plot(times, yaxis_H,':^r' , label=r'$H$');
+    ax[row,column].plot(xs,y, 'yo')
+    ax[row,column].plot(xs, poly1d_fn(xs), '--k', label=f'{poly1d_fn[1]:.2f}')
+    if row!=4:
+        ax[row,column].xaxis.set_visible(False)
+    if row==4:
+        ax[row,column].set_xlabel('Time');
+    if column==0:
+        ax[row,column].set_ylabel(r'$log \left(O_1(t) \right)$');
+    # plt.ylim(-4,0.1)
+    ax[row,column].legend(loc='best');
+    # ax[row,column].set_xlim(0,20);
+    ax[row,column].set_ylim(-2,4);
+    ax[row,column].grid();
+# plt.show()
+plt.savefig(f'FIT_i{i}_m{m}_n{n}_O1s_4pC_4p_comp_KI_with_Tinf_state'+f'_time_lim{time_lim}_J{J:.2f}_hx{x:.2f}_hz{z:.2f}_basis_size{N}'+operators+'.png', dpi=80)#_AX_BX
+
 #%%
-# normed_slope_H = np.abs(pendientes_H)/max(np.abs(pendientes_U))
-normed_slope_U = np.abs(pendientes_U)/max(np.abs(pendientes_U))
+js = np.arange(N)
+normed_slope = np.abs(pendientes)/max(np.abs(pendientes))
 plt.figure(figsize=(16,8))
-# plt.plot(thetas[1:],normed_slope_H, '*--r', ms=1, lw=2, label='slope H')
-plt.plot(thetas[1:],normed_slope_U, '*--b', ms=1, lw=2, label='slope U')
+plt.plot(js[1:],normed_slope, '^-b', ms=0.8, lw=0.8, label='slope')
 plt.xlabel(r'$\theta$')
-# plt.ylabel(r'$\alpha$ (slope)')
+plt.ylabel(r'$\alpha$ (slope)')
 plt.grid()
 #plt.savefig(f'N{N}_slope_vs_hz.png', dpi=80)
 #
 #plt.figure()
-plt.plot(thetas,rs_H, '^-r', ms=0.8, lw=0.8, label='H')
-plt.plot(thetas,rs_U, '^-b', ms=0.8, lw=0.8, label='U')
+plt.plot(js,rs, '^-r', ms=0.8, lw=0.8, label=r'r')
 #plt.xlabel(r'$\theta$')
-plt.ylabel(r'$r$ (chaometer) ')
+#plt.ylabel(r'$r$ (chaometer) ')
 # plt.ylim(-0.1,1.1)
 #plt.grid()
 plt.legend(loc='best')
 #plt.savefig(f'N{N}_r_vs_hz.png', dpi=80)
-plt.savefig(f'HorU_N{N}_r_vs_hz.png', dpi=80)
-
+plt.savefig(f'i{i}_m{m}_n{n}_N{N}_r_y_slope_vs_hz.png', dpi=80)
