@@ -317,7 +317,7 @@ B = 1
 J = 1
 
 x = 1
-# z = 1
+z = 1
 
 time_lim = 10
 
@@ -395,10 +395,10 @@ def TFIM_O1_chaos_parameter(N, B, J, theta, x, z, time_lim):
     
     return [[O1s_H, O2s_H, Cs_H], [O1s_U, O2s_U, Cs_U], r_normed_H, r_normed_U]
 
-points = 10
+points = 5
 
 zs = np.linspace(0.01,2.6,points)
-thetas = np.linspace(0.001, np.pi/2+0.001,points)
+thetas = np.linspace(0.01, np.pi/2+0.01,points)
 z = 1
 
 O1_H_array, O2_H_array, Cs_H_array = np.zeros((time_lim, len(zs))), np.zeros((time_lim, len(zs))), np.zeros((time_lim, len(zs)))
@@ -556,7 +556,12 @@ for i,z in enumerate(zs[1:]):
 # plt.savefig('FIT_O1s_4pC_4p_comp_KI_with_Tinf_state'+f'_time_lim{time_lim}_J{J:.2f}_hx{x:.2f}_hz{z:.2f}_basis_size{N}'+operators+'.png', dpi=80)#_AX_BX
 #%%
 # normed_slope_H = np.abs(pendientes_H)/max(np.abs(pendientes_U))
-normed_slope_U = np.abs(pendientes_U)/max(np.abs(pendientes_U))
+abs_pen = np.abs(pendientes_U)
+normed_slope_U = (abs_pen - min(abs_pen))/(max(abs_pen) - min(abs_pen))
+
+r_H_normed = (rs_H-min(rs_H))/(max(rs_H) - min(rs_H))
+r_U_normed = (rs_U-min(rs_U))/(max(rs_U) - min(rs_U))
+
 plt.figure(figsize=(16,8))
 # plt.plot(thetas[1:],normed_slope_H, '*--r', ms=1, lw=2, label='slope H')
 plt.plot(thetas[1:],normed_slope_U, '*--b', ms=1, lw=2, label='slope U')
@@ -566,8 +571,8 @@ plt.grid()
 #plt.savefig(f'N{N}_slope_vs_hz.png', dpi=80)
 #
 #plt.figure()
-plt.plot(thetas,rs_H, '^-r', ms=0.8, lw=0.8, label='H')
-plt.plot(thetas,rs_U, '^-b', ms=0.8, lw=0.8, label='U')
+plt.plot(thetas,r_H_normed, '^-r', ms=0.8, lw=0.8, label='H')
+plt.plot(thetas,r_U_normed, '^-b', ms=0.8, lw=0.8, label='U')
 #plt.xlabel(r'$\theta$')
 plt.ylabel(r'$r$ (chaometer) ')
 # plt.ylim(-0.1,1.1)
