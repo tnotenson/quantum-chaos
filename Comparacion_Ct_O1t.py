@@ -16,7 +16,7 @@ from cmath import phase
 plt.rcParams.update({
 "text.usetex": True,
 "font.family": "sans-serif",
-"font.sans-serif": ["Helvetica"], "font.size": 12})
+"font.sans-serif": ["Helvetica"], "font.size": 24})
 
 # define usefull one body operators 
 sx=sigmax()
@@ -24,6 +24,41 @@ sy=sigmay()
 sz=sigmaz()
 si=qeye(2)
 s0=(si-sz)/2
+
+def TFIM(N, hx, hz, J):
+
+    # construct the spin (super)operators for each site
+    s_ops = [sigmax(), sigmay(), sigmaz()]
+    
+    sx_list = []
+    sy_list = []
+    sz_list = []
+    
+    s_lists = [sx_list, sy_list, sz_list]
+    
+    for n in range(N):
+        op_list = [si for m in range(N)]
+
+        for s_op, s_list in zip(s_ops, s_lists):
+            op_list[n] = s_op
+            s_list.append(tensor(op_list))
+
+    # construct the hamiltonian
+    H = 0
+
+    # energy splitting terms      
+    for n in range(N):
+        H += hx[n] * sx_list[n]
+        H += hz[n] * sz_list[n]
+    # interaction terms
+    #PBC
+    for n in range(N):
+        H += J[n] * sz_list[n] * sz_list[(n+1)%N]
+    #OBC
+    # for n in range(N-1):
+    #     H += J[n] * sz_list[n] * sz_list[n+1]
+    
+    return H
 
 def fH0(N, hx, hz, sx_list, sz_list):
     
@@ -45,10 +80,14 @@ def fH1(N, J, sz_list):
     H = 0
     
     # interaction terms
-    for n in range(N-1):
-        H += J[n] * sz_list[n] * sz_list[(n+1)]
-    
+    #PBC
+    for n in range(N):
+        H += J[n] * sz_list[n] * sz_list[(n+1)%N]
+    #OBC
+    # for n in range(N-1):
+    #     H += J[n] * sz_list[n] * sz_list[n+1]
     return H
+
 
 def fU(N, J, hx, hz):
     
@@ -161,37 +200,6 @@ def C_t_commutator_numpy_Tinf(A, B_t, dims):
     C_t = np.trace(com.H@com)/dims
     return C_t
 
-def TFIM(N, hx, hz, J):
-
-    # construct the spin (super)operators for each site
-    s_ops = [sigmax(), sigmay(), sigmaz()]
-    
-    sx_list = []
-    sy_list = []
-    sz_list = []
-    
-    s_lists = [sx_list, sy_list, sz_list]
-    
-    for n in range(N):
-        op_list = [qeye(2) for m in range(N)]
-
-        for s_op, s_list in zip(s_ops, s_lists):
-            op_list[n] = s_op
-            s_list.append(tensor(op_list))
-
-    # construct the hamiltonian
-    H = 0
-
-    # energy splitting terms      
-    for n in range(N):
-        H += hx[n] * sx_list[n]
-        H += hz[n] * sz_list[n]
-    # interaction terms
-    for n in range(N-1):
-        H += J[n] * sz_list[n] * sz_list[n+1]
-    
-    return H
-
 def Evolution4p_and_2p_H_KI_Tinf(H, time_lim, N, A, B):
     
     start_time = time() 
@@ -278,8 +286,8 @@ def Evolution4p_and_2p_U_KI_Tinf(U, time_lim, N, A, B):
         
         C_t = -2*(O1 - O2)/dim
         
-        C_2 = twopC_numpy_Tinf(A, B_t) - A_average(A, dim)
-        C_2 = C_2/dim
+        C_2 = twopC_numpy_Tinf(A, B_t)# - A_average(A, dim)
+        C_2 = C_2/dim/N
         # print(C_t)
         # store data
         O1s[i] = np.abs(O1); O2s[i] = np.abs(O2); Cs[i] = np.abs(C_t); C2[i] = np.abs(C_2)
@@ -333,12 +341,12 @@ def diagU_r(U_sub):
     r_normed = r_chaometer(fases, plotadjusted=True) 
     return r_normed
 
-def TFIM_O1_and_C_chaos_parameter(N, B, J, theta, x, z, time_lim):
+def TFIM_O1_and_C_chaos_parameter(N, B, J, theta, time_lim):
         
     # define parameters of Heisenberg chain with inclined field 
     
-    hx = np.sin(theta)*x*B*np.ones(N)
-    hz = np.cos(theta)*z*B*np.ones(N)
+    hx = np.sin(theta)*B*np.ones(N)
+    hz = np.cos(theta)*B*np.ones(N)
     Jz = J*np.ones(N)
     
     start_time = time()
@@ -349,8 +357,8 @@ def TFIM_O1_and_C_chaos_parameter(N, B, J, theta, x, z, time_lim):
     ######## U evolution ##########
     U = fU(N, Jz, hx, hz)
     
-    A = Sj(N, j='z')#/N
-    B = Sj(N, j='z')
+    A = Sj(N, j='x')#/N
+    B = Sj(N, j='x')
     
     # opA = 'X'
     # opB = 'X'
@@ -415,23 +423,21 @@ def TFIM_O1_and_C_chaos_parameter(N, B, J, theta, x, z, time_lim):
 N = 12
 J = 1
 
-x = 1
-z = 1
-
 time_lim = 50
-
-points = 100
 #%% Calcular los correladores para un valor de theta y de B
 # tomo los valores de Prosen
 hx = 1.4
 hz = 1.4
 B = np.sqrt(hx**2 + hz**2)
-theta = np.arctan(hz/hx)
+if hz == 0:
+    theta = np.pi/2
+else:
+    theta = np.arctan(hx/hz)
 print('B=',B,'\ntheta=',theta)
-[O1s_H, O2s_H, Cs_H, C2_H], [O1s_U, O2s_U, Cs_U, C2_U], r_normed_H, r_normed_U = TFIM_O1_and_C_chaos_parameter(N, B, J, theta, x, z, time_lim)
+[O1s_H, O2s_H, Cs_H, C2_H], [O1s_U, O2s_U, Cs_U, C2_U], r_normed_H, r_normed_U = TFIM_O1_and_C_chaos_parameter(N, B, J, theta, time_lim)
 #%% Calcular los correladores para varios valores de theta y uno de B
-
-thetas = np.linspace(0.01, np.pi/2+0.01,points)
+# points = 100
+# thetas = np.linspace(0.01, np.pi/2+0.01,points)
 
 # O1_H_array, O2_H_array, Cs_H_array, C2_H_array = np.zeros((time_lim, points)), np.zeros((time_lim, points)), np.zeros((time_lim, points)), np.zeros((time_lim, points))
 # O1_U_array, O2_U_array, Cs_U_array, C2_U_array = np.zeros((time_lim, points)), np.zeros((time_lim, points)), np.zeros((time_lim, points)), np.zeros((time_lim, points))
@@ -459,12 +465,15 @@ times = np.arange(0,time_lim)
 y_O1_U = np.log10(O1s_U) - np.log10(O1s_U)[0] + 1
 y_C2_U = np.log10(C2_U)
 
-tmin = 1
-tmax = 21
+y1fit = np.log(O1s_U)
+y2fit = np.log(C2_U)
+
+tmin = 0
+tmax = 16
 
 xs = times[tmin:tmax]
-y = y_O1_U[tmin:tmax]
-yp = y_C2_U[tmin:tmax]
+y = y1fit[tmin:tmax]
+yp = y2fit[tmin:tmax]
 
 coef = np.polyfit(xs,y,1)
 coefp = np.polyfit(xs,yp,1)
@@ -476,9 +485,10 @@ print(r'$C_2$',poly1d_fn_p[1])
 
 plt.figure(figsize=(16,8))
 plt.plot(times,y_O1_U, '*--b', ms=1, lw=1, label='$O_1^U(t)$', alpha=0.8)
-plt.plot(xs, poly1d_fn(xs), '-b', lw=2)
+# plt.plot(xs, poly1d_fn(xs), '-b', lw=2)
 plt.plot(times,y_C2_U, '*--r', ms=1, lw=1, label='$C_2^U(t)$', alpha=0.8)
-plt.plot(xs, poly1d_fn_p(xs), '-r', lw=2)
+# plt.plot(xs, poly1d_fn_p(xs), '-r', lw=2)
+plt.plot(times, np.log10(1/4*np.exp(-times/6)), '-k', lw=2)
 
 plt.text(20, 0, r'$m_1=$'+f'{poly1d_fn[1].real:.2}',
         verticalalignment='bottom', horizontalalignment='right',
@@ -490,11 +500,13 @@ plt.text(20, -0.25, r'$m_2=$'+f'{poly1d_fn_p[1].real:.2}',
 
 plt.xlabel(r'$\theta$')
 plt.ylabel(r'$log_{10}(C(t))$')
-# plt.ylim(-4,1)
+# plt.ylim(-4,1.1)
+plt.xlim(-0.2,50.2)
 plt.grid()
 plt.legend(loc='best')
-opA = 'Z'
-opB = 'Z'
+opA = 'X'
+opB = 'X'
 operators = '_A'+opA+'_B'+opB
+paridad = 'par'
 flag = '4p_and_2p_KI_with_Tinf_state'
-plt.savefig(flag+f'_time_lim{time_lim}_J{J:.2f}_hx{x:.2f}_hz{z:.2f}_theta_min{min(thetas):.2f}_theta_max{max(thetas):.2f}_theta_len{len(thetas):.2f}_basis_size{N}'+operators+'.png', dpi=80)
+plt.savefig(flag+f'_time_lim{time_lim}_J{J:.2f}_hx{hx:.2f}_hz{hz:.2f}_theta{theta:.2f}_basis_size{N}'+paridad+operators+'.png', dpi=80)
