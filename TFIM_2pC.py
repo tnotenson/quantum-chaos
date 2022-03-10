@@ -113,9 +113,30 @@ def fU(N, J, hx, hz):
     H0 = fH0(N, hx, hz, sx_list, sz_list)
     H1 = fH1(N, J, sz_list)
     
-    U = (-1j*H1).expm()*(-1j*H0).expm()
+    # U = (-1j*H1).expm()*(-1j*H0).expm()
+#     ##    # define the floquet operator
+    e1, evec1 = H1.eigenstates()
+    e0, evec0 = H0.eigenstates()
+  
+    C1 = np.column_stack([vec.data.toarray() for vec in evec1])
+    C1inv = np.matrix(C1).H
     
-    return U
+    C0 = np.column_stack([vec.data.toarray() for vec in evec0])
+    C0inv = np.matrix(C0).H
+    
+    U1_diag = np.diag(np.exp(-1j*e1))
+    U0_diag = np.diag(np.exp(-1j*e0))
+#    
+##    print(C1inv.shape)
+##    print(C1.shape)
+##    print(U1_diag)
+#    
+    U1 = C1@U1_diag@C1inv
+    U0 = C0@U0_diag@C0inv
+##    
+    U = U1@U0
+    
+    return Qobj(U)#U #
 
 # construct permute operator
 def pij(l,i,j):
@@ -186,7 +207,7 @@ def A_average(A, dims):
     return res
 
 @jit(nopython=True, parallel=True, fastmath = True)
-def C_t_commutator_numpy_Tinf(A, B_t):
+def C_t_commutator_numpy_Tinf(A, B_t, N):
     com = B_t@A - A@B_t
     C_t = np.trace(com.H@com)/N
     return C_t
@@ -301,17 +322,17 @@ def C2p_time(time_lim, A, B, U, Udag, Cs, N):
             # Evolution
             B_t = Evolucion_numpy(B_t, U, Udag)
             
-        dim = A.shape[0]
+        # dim = A.shape[0]
         # compute 2-point correlator with qutip
         # C_t = (B_t*A).tr() - A.tr()/dim
         # C_t = C_t/dim
         
         # compute 2-point correlator with qutip
         C_t = twopC_numpy_Tinf(A, B_t)# - A_average(A, dim)
-        C_t = C_t/dim/N
+        # C_t = C_t
         
         # print(C_t)
-        Cs[i] = np.abs(C_t)
+        Cs[i] = C_t#np.abs(C_t)
     return Cs
 
 def Evolution2p_H_KI_Tinf(H, time_lim, N, A, B):
@@ -319,7 +340,7 @@ def Evolution2p_H_KI_Tinf(H, time_lim, N, A, B):
     start_time = time() 
     
     # define arrays for data storage
-    Cs = np.zeros((time_lim))#, dtype=np.complex_)#[]
+    Cs = np.zeros((time_lim), dtype=np.complex_)#, dtype=np.complex_)#[]
         
     # define time evolution operator
     U = (-1j*H).expm().data.toarray()
@@ -365,8 +386,9 @@ def TFIM_2pC_chaos_parameter(N, B, J, theta, time_lim):
     # H = TFIM(N, hx, hz, Jz)
     ######## U evolution ##########
     U = fU(N, Jz, hx, hz)
-    
+    # U = np.matrix(U.data.toarray())
     A = Sj(N, j='x')#/N
+    # A = A.data.toarray()
     # i = int(N/2)
     # A = sigmai_j(N,i,j='x')
     
@@ -382,37 +404,43 @@ def TFIM_2pC_chaos_parameter(N, B, J, theta, time_lim):
     P = parity(N)
     ep, epvec = P.eigenstates()
     
+    print(ep)
+    
     n_mone, n_one = np.unique(ep, return_counts = True)[1]
     
-    print('tamaños de subespacios de par.', n_mone, n_one)
+    print('tamaños de subespacios de par.', n_mone,'+',n_one,'=', n_mone+n_one)
     C = np.column_stack([vec.data.toarray() for vec in epvec])
     Cinv = np.linalg.inv(C)
     
-    # ######## H evolution ##########
+    # # ######## H evolution ##########
     
-    # H_par = H.transform(Cinv)
-    # # print(H_par)
+    # # H_par = H.transform(Cinv)
+    # # # print(H_par)
     
-    ######## U evolution ##########
+    # ######## U evolution ##########
     U_par = U.transform(Cinv)
-    # print(U_par)
+    # # hinton(U_par)
     
     A_par = A.transform(Cinv)
+    # hinton(A_par)
     
+    # # ######## H evolution ##########
+    # # H_sub = H_par.extract_states(np.arange(n_mone,n_one+n_mone))
+    # # # print(H_sub)
     
-    # ######## H evolution ##########
-    # H_sub = H_par.extract_states(np.arange(n_mone,n_one+n_mone))
-    # # print(H_sub)
+    # ######## U evolution ##########
+    U_mone = U_par.extract_states(np.arange(n_mone)).data.toarray()
+    U_one = U_par.extract_states(np.arange(n_mone, n_mone+n_one)).data.toarray()
+    U_mone = np.matrix(U_mone, dtype=np.complex_)
+    U_one = np.matrix(U_one, dtype=np.complex_)
     
-    ######## U evolution ##########
-    U_sub = U_par.extract_states(np.arange(n_mone, n_mone+n_one)).data.toarray()
-    U_sub = np.matrix(U_sub)
-    
-    A_sub = A_par.extract_states(np.arange(n_mone, n_mone+n_one)).data.toarray()
+    A_mone = A_par.extract_states(np.arange(n_mone)).data.toarray()
+    A_one = A_par.extract_states(np.arange(n_mone, n_mone+n_one)).data.toarray()
+    # A_sub = np.matrix(A_sub, dtype=np.complex_)
     print(f"\n Separate parity eigenstates --- {time() - start_time} seconds ---" )
     
     # r_normed_H = diagH_r(H_sub)
-    r_normed_U = diagU_r(U_sub)
+    # r_normed_U = diagU_r(U_sub)
     
     start_time = time()
     #
@@ -420,12 +448,14 @@ def TFIM_2pC_chaos_parameter(N, B, J, theta, time_lim):
     # Cs, flag = Evolution2p_H_KI_Tinf(H_sub, time_lim, N, A_sub, A_sub)
     # np.savez(flag+f'_time_lim{time_lim}_J{J:.2f}_hx{x:.2f}_hz{z:.2f}_theta{theta:.2f}_basis_size{N}'+operators+'.npz', O1s=O1s_H, O2s=O2s_H, Cs=Cs_H)
     
-    Cs, flag = Evolution2p_U_KI_Tinf(U_sub, time_lim, N, A_sub, A_sub)
+    # Cs, _ = Evolution2p_U_KI_Tinf(U, time_lim, N, A, A)
+    Cs_mone, _ = Evolution2p_U_KI_Tinf(U_mone, time_lim, N, A_mone, A_mone)
+    Cs_one, _ = Evolution2p_U_KI_Tinf(U_one, time_lim, N, A_one, A_one)
     # np.savez('2pC_'+flag+f'_time_lim{time_lim}_J{J:.2f}_hx{x:.2f}_hz{z:.2f}_basis_size{N}'+operators+'.npz', Cs=Cs)
     
     print(f"\n Evolution 2pC --- {time() - start_time} seconds ---" )
     
-    return [Cs, r_normed_U]
+    return [Cs_mone, Cs_one]#, r_normed_U# [Cs] #
 
 #%% Calcular los correladores para un valor de theta y de B
 # define parameters of Heisenberg chain with inclined field 
@@ -438,7 +468,7 @@ points = 50
 
 # tomo los valores de Prosen
 hx = 1.4
-hz = 0
+hz = 1.4
 
 B = np.sqrt(hx**2 + hz**2)
 if hz == 0:
@@ -446,9 +476,74 @@ if hz == 0:
 else:
     theta = np.arctan(hx/hz)
 print('B=',B,'\ntheta=',theta)
-Cs, r_normed_U = TFIM_2pC_chaos_parameter(N, B, J, theta, time_lim)
+Cs_mone, Cs_one = TFIM_2pC_chaos_parameter(N, B, J, theta, time_lim)
+# Cs = TFIM_2pC_chaos_parameter(N, B, J, theta, time_lim)[0]
+
+Cs = (Cs_mone + Cs_one)/2**N/N
+
+# Cs_numpy = Cs
+
+
+#%% Comparación de contribuciones Cs por paridad
+# Cs_mone = Cs_mone/2**N/N
+# Cs_one = Cs_one/2**N/N
+
+# plt.figure(figsize=(16,8))
+
+# y_Cs_U_mone = np.log10(Cs_mone/Cs_mone[0])
+# y_Cs_U_one = np.log10(Cs_one/Cs_one[0])
+
+# yfit_mone = np.log(Cs_mone)
+# yfit_one = np.log(Cs_one)
+
+# tmin = 0
+# tmax = 16
+
+# xs = times[tmin:tmax]
+# yp_mone = yfit_mone[tmin:tmax]
+# yp_one = yfit_one[tmin:tmax]
+
+# coefp_mone = np.polyfit(xs,yp_mone,1)
+# coefp_one = np.polyfit(xs,yp_one,1)
+
+# poly1d_fn_p_mone = np.poly1d(coefp_mone) #[b,m]
+# poly1d_fn_p_one = np.poly1d(coefp_one) #[b,m]
+
+# plt.plot(times, np.log10(1/4*np.exp(-times/6)), '-.k', lw=1, label='0.25exp(-t/6)')
+# plt.text(20, -.75, r'$m_2^{impar}=$'+f'{poly1d_fn_p_mone[1].real:.2}',
+#         verticalalignment='bottom', horizontalalignment='right',
+#         color='red', fontsize=15)
+# plt.text(20, -1.25, r'$m_2^{par}=$'+f'{poly1d_fn_p_one[1].real:.2}',
+#         verticalalignment='bottom', horizontalalignment='right',
+#         color='blue', fontsize=15)
+# plt.ylim(-4,0)
+# plt.ylabel(r'$log_{10}(C(t))$')
+# plt.plot(times,y_Cs_U_mone, 'o-r', ms=1, lw=2, label='impar', alpha=0.8)
+# plt.plot(times,y_Cs_U_one, 'o-b', ms=1, lw=2, label='par', alpha=0.8)
+# # plt.plot(xs, poly1d_fn_p(xs), '--r', lw=1)
+
+
+# print('impar',Cs_mone[0])
+# print('par',Cs_one[0])
+
+# plt.xlabel(r'$t$')
+
+# plt.xlim(-0.2,50.2)
+# plt.grid()
+# plt.legend(loc='best')
+
+# opA = 'X'#+opi
+# opB = opA#'X'
+# paridad = 'par'
+# operators = '_A'+opA+'_B'+opB
+# BC = 'PBC'
+# flag = 'Comparacion_contr_paridad_2p_KI_with_Tinf_state_'
+# plt.savefig(flag+BC+f'_time_lim{time_lim}_J{J:.2f}_hx{hx:.2f}_hz{hz:.2f}_theta{theta:.2f}_basis_size{N}'+paridad+operators+'_suma_de_contr_subesp_paridad.png', dpi=80)
+
 
 #%%
+
+
 
 plt.figure(figsize=(16,8))
 
@@ -468,11 +563,13 @@ if hx == hz:
     
     print(r'$C_2$',poly1d_fn_p[1])
     
-    plt.plot(times, np.log10(1/4*np.exp(-times/6)), '-.k', lw=2, label='0.25exp(-t/6)')
+    plt.plot(times, np.log10(1/4*np.exp(-times/6)), '-.k', lw=1, label='0.25exp(-t/6)')
     plt.text(20, -1, r'$m_2=$'+f'{poly1d_fn_p[1].real:.2}',
             verticalalignment='bottom', horizontalalignment='right',
             color='red', fontsize=15)
-    plt.ylim(-4,0.2)
+    plt.ylim(-4,0)
+    plt.ylabel(r'$log_{10}(C(t))$')
+    plt.plot(times,np.log10((Cs_mone+Cs_one)/2**N/N), 'o-c', ms=1, lw=2, label='$L=$'+f'{N}', alpha=0.8)
 else:
     y_C2_U = Cs
     
@@ -481,17 +578,17 @@ else:
     elif hz == 0.4:
         DL = 0.293
     
-    plt.plot(times, np.mean(y_C2_U)*np.ones(time_lim), '-.k', lw=2, label=r'$D/L = $'+f'{DL:.3f}')
-    
-plt.plot(times,y_C2_U, 'o:k', ms=1, lw=2, label='$L=$'+f'{N}', alpha=0.8)
+    plt.plot(times, DL*np.ones(time_lim), '-.k', lw=2, label=r'$D/L = $'+f'{DL:.3f}')
+    plt.ylabel(r'$C(t)$')
+plt.plot(times,y_C2_U, 'o-g', ms=1, lw=2, label='$L=$'+f'{N}', alpha=0.8)
 # plt.plot(xs, poly1d_fn_p(xs), '--r', lw=1)
 
 
-
+print(Cs[0])
 
 plt.xlabel(r'$t$')
-plt.ylabel(r'$log_{10}(C(t))$')
-plt.xlim(-0.2,50.2)
+
+plt.xlim(-0,50)
 plt.grid()
 plt.legend(loc='best')
 # opi = str(int(N/2))
@@ -501,7 +598,61 @@ paridad = 'par'
 operators = '_A'+opA+'_B'+opB
 BC = 'PBC'
 flag = '2p_KI_with_Tinf_state_'
-plt.savefig(flag+BC+f'_time_lim{time_lim}_J{J:.2f}_hx{hx:.2f}_hz{hz:.2f}_theta{theta:.2f}_basis_size{N}'+paridad+operators+'.png', dpi=80)
+plt.savefig(flag+BC+f'_time_lim{time_lim}_J{J:.2f}_hx{hx:.2f}_hz{hz:.2f}_theta{theta:.2f}_basis_size{N}'+paridad+operators+'_suma_de_contr_subesp_paridad.png', dpi=80)
+#%%
+# plt.figure(figsize=(16,8))
+
+# if hx == hz:
+#     y_C2_U = np.log10(Cs)
+
+#     yfit = np.log(Cs)
+    
+#     tmin = 0
+#     tmax = 16
+    
+#     xs = times[tmin:tmax]
+#     yp = yfit[tmin:tmax]
+    
+#     coefp = np.polyfit(xs,yp,1)
+#     poly1d_fn_p = np.poly1d(coefp) #[b,m]
+    
+#     print(r'$C_2$',poly1d_fn_p[1])
+    
+#     plt.plot(times, np.log10(1/4*np.exp(-times/6)), '-.k', lw=2, label='0.25exp(-t/6)')
+#     plt.text(20, -1, r'$m_2=$'+f'{poly1d_fn_p[1].real:.2}',
+#             verticalalignment='bottom', horizontalalignment='right',
+#             color='red', fontsize=15)
+#     plt.ylim(-4,0)
+#     plt.ylabel(r'$log_{10}(C(t))$')
+# else:
+#     y_C2_U = Cs
+    
+#     if hz == 0:
+#         DL = 0.485
+#     elif hz == 0.4:
+#         DL = 0.293
+    
+#     plt.plot(times, np.mean(y_C2_U)*np.ones(time_lim), '-.k', lw=2, label=r'$D/L = $'+f'{DL:.3f}')
+#     plt.ylabel(r'$C(t)$')
+# plt.plot(times,y_C2_U, 'o:k', ms=1, lw=2, label='$L=$'+f'{N}', alpha=0.8)
+# # plt.plot(xs, poly1d_fn_p(xs), '--r', lw=1)
+
+
+# print(Cs[0])
+
+# plt.xlabel(r'$t$')
+
+# plt.xlim(-0.2,50.2)
+# plt.grid()
+# plt.legend(loc='best')
+# # opi = str(int(N/2))
+# opA = 'X'#+opi
+# opB = opA#'X'
+# paridad = 'par'
+# operators = '_A'+opA+'_B'+opB
+# BC = 'PBC'
+# flag = '2p_KI_with_Tinf_state_'
+# plt.savefig(flag+BC+f'_time_lim{time_lim}_J{J:.2f}_hx{hx:.2f}_hz{hz:.2f}_theta{theta:.2f}_basis_size{N}'+paridad+operators+'_suma_de_contr_subesp_paridad.png', dpi=80)
     #%%
 # Cs_U_array = np.zeros((time_lim, points))
 
