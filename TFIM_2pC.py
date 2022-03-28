@@ -447,7 +447,7 @@ print('B=',B,'\ntheta=',theta)
 Cs_mone, Cs_one = TFIM_2pC_chaos_parameter(N, J, hx, hz, time_lim)
 # Cs = TFIM_2pC_chaos_parameter(N, B, J, theta, time_lim)[0]
 
-Cs = (Cs_mone + Cs_one)/2**N/N
+Cs = np.abs((Cs_mone + Cs_one)/2**N/N)
 
 # Cs_numpy = Cs
 # flag = 'Evol_alreves_2p_KI_with_Tinf_state_'
@@ -459,7 +459,7 @@ paridad = 'par'
 operators = '_A'+opA+'_B'+opB
 BC = 'PBC'
 flag = 'propagator_2p_KI_with_Tinf_state_'
-np.savez('2pC_'+flag+f'_time_lim{time_lim}_J{J:.2f}_hx{hx:.2f}_hz{hz:.2f}_basis_size{N}'+operators+'.npz', Cs=Cs)
+# np.savez('2pC_'+flag+f'_time_lim{time_lim}_J{J:.2f}_hx{hx:.2f}_hz{hz:.2f}_basis_size{N}'+operators+'.npz', Cs=Cs)
 #%% Comparación de contribuciones Cs por paridad
 # Cs_mone = Cs_mone/2**N/N
 # Cs_one = Cs_one/2**N/N
@@ -532,14 +532,22 @@ if hx == hz:
     tmax = 16
     
     xs = times[tmin:tmax]
+    y = y_C2_U[tmin:tmax]
     yp = yfit[tmin:tmax]
     
     coefp = np.polyfit(xs,yp,1)
     poly1d_fn_p = np.poly1d(coefp) #[b,m]
+    mp, bp = poly1d_fn_p
     
+    coef10 = np.polyfit(xs,y,1)
+    poly1d_fn10 = np.poly1d(coef10) #[b,m]
+    m, b = poly1d_fn10
+
+    # m = -0.0723824
     print(r'$C_2$',poly1d_fn_p[1])
     
-    plt.plot(times, np.log10(1/4*np.exp(-times/6)), '-.k', lw=1, label='0.25exp(-t/6)')
+    plt.plot(xs, np.log10(np.exp(mp*xs+bp)), '-.k', lw=1, label=f'D exp(-t/{1/np.abs(mp):.0f})')
+    plt.plot(xs, m*xs+b, '-.k', lw=1, label=f'C 10**(-t/{1/np.abs(m):.0f})')
     plt.text(20, -1, r'$m_2=$'+f'{poly1d_fn_p[1].real:.2}',
             verticalalignment='bottom', horizontalalignment='right',
             color='red', fontsize=15)
@@ -569,7 +577,7 @@ plt.grid()
 plt.legend(loc='best')
 
 plt.savefig(flag+BC+f'_time_lim{time_lim}_J{J:.2f}_hx{hx:.2f}_hz{hz:.2f}_theta{theta:.2f}_basis_size{N}'+paridad+operators+'_suma_de_contr_subesp_paridad.png', dpi=80)
-    #%%
+    # %%
 if hz == 0.4:
     
     yplot = np.log10(np.abs(Cs-DL))#np.abs(Cs-DM)#
