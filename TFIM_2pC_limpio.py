@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Tue Nov 16 14:26:35 2021
+Created on Mon Mar 14 16:49:45 2022
 
 @author: tomasnotenson
 """
@@ -25,8 +25,6 @@ sx=sigmax()
 sy=sigmay()
 sz=sigmaz()
 si=qeye(2)
-s0=(si-sz)/2
-
 
 def TFIM(N, hx, hz, J):
 
@@ -85,11 +83,25 @@ def fH1(N, J, sz_list):
     # interaction terms
     #PBC
     for n in range(N):
+        print('NN',n,n+1)
         H += J[n] * sz_list[n] * sz_list[(n+1)%N]
     #OBC
     # for n in range(N-1):
     #     H += J[n] * sz_list[n] * sz_list[n+1]
     return H
+
+# Probar "propagator" de qutip
+def U_from_H_numpy(H):
+    e, evec = H.eigenstates()
+    
+    C = np.column_stack([vec.data.toarray() for vec in evec])
+    Cinv = np.matrix(C).H
+    
+    U_diag = np.diag(np.exp(-1j*e))
+    
+    U = C@U_diag@Cinv
+    
+    return U
 
 def fU(N, J, hx, hz):
     
@@ -113,28 +125,9 @@ def fU(N, J, hx, hz):
     H0 = fH0(N, hx, hz, sx_list, sz_list)
     H1 = fH1(N, J, sz_list)
     
-    U0 = propagator(H0,1).full()
-    U1 = propagator(H1,1).full()
-#     ##    # define the floquet operator
-#     e1, evec1 = H1.eigenstates()
-#     e0, evec0 = H0.eigenstates()
-  
-#     C1 = np.column_stack([vec.data.toarray() for vec in evec1])
-#     C1inv = np.matrix(C1).H
+    U0 = U_from_H_numpy(H0)
+    U1 = U_from_H_numpy(H1)
     
-#     C0 = np.column_stack([vec.data.toarray() for vec in evec0])
-#     C0inv = np.matrix(C0).H
-    
-#     U1_diag = np.diag(np.exp(-1j*e1))
-#     U0_diag = np.diag(np.exp(-1j*e0))
-# #    
-# ##    print(C1inv.shape)
-# ##    print(C1.shape)
-# ##    print(U1_diag)
-# #    
-#     U1 = C1@U1_diag@C1inv
-#     U0 = C0@U0_diag@C0inv
-##    
     U = U1@U0
     
     return Qobj(U)
@@ -187,11 +180,6 @@ def sigmai_j(N,i,j='z'):
         op_list[i] = sy
     return tensor(op_list)
 
-def can_bas(N,i):
-    e = np.zeros(N)
-    e[i] = 1.0
-    return e
-
 @jit(nopython=True, parallel=True, fastmath = True)
 def Evolucion_numpy(B_t, U, Udag):
     res = Udag@B_t@U#U@B_t@Udag#
@@ -202,58 +190,7 @@ def twopC_numpy_Tinf(A, B_t):
     C = np.trace(B_t@A)
     return C
 
-@jit(nopython=True, parallel=True, fastmath = True)
-def A_average(A, dims):
-    res = np.trace(A)**2/dims
-    return res
-
-@jit(nopython=True, parallel=True, fastmath = True)
-def C_t_commutator_numpy_Tinf(A, B_t, N):
-    com = B_t@A - A@B_t
-    C_t = np.trace(com.H@com)/N
-    return C_t
-
-# Calcultes r parameter in the 10% center of the energy "ener" spectrum. If plotadjusted = True, returns the magnitude adjusted to Poisson = 0 or WD = 1
-def r_chaometer(ener,plotadjusted):
-    ra = np.zeros(len(ener)-2)
-    #center = int(0.1*len(ener))
-    #delter = int(0.05*len(ener))
-    for ti in range(len(ener)-2):
-        ra[ti] = (ener[ti+2]-ener[ti+1])/(ener[ti+1]-ener[ti])
-        ra[ti] = min(ra[ti],1.0/ra[ti])
-    ra = np.mean(ra)
-    if plotadjusted == True:
-        ra = (ra -0.3863) / (-0.3863+0.5307)
-    return ra
-
-def histo_level_spacing(ener):
-    spac = np.diff(ener)
-    print('espaciado',spac)
-    plt.figure(figsize=(16,8))
-    plt.hist(spac)
-    plt.xlabel('level spacing')
-    return 
-
-# @jit(nopython=True)#, parallel=True, fastmath = True)
-def diagH_r(H_sub):
-    ener = np.linalg.eigvals(H_sub)
-    ener = np.sort(ener)
-    # histo_level_spacing(ener)
-    r_normed = r_chaometer(ener, plotadjusted=True) 
-    return r_normed
-
-# @jit(nopython=True)#, parallel=True, fastmath = True)
-def diagU_r(U_sub):
-    ener = np.linalg.eigvals(U_sub)
-    fases = [phase(en) for en in ener]
-    fases = np.sort(fases)
-    # histo_level_spacing(fases)
-    r_normed = r_chaometer(fases, plotadjusted=True) 
-    return r_normed
-
-#%%
-
-def C2p_time(time_lim, A, B, U, Udag, Cs, N):
+def C2p_time(time_lim, A, B, U, Udag, Cs):
     # compute OTOC, O1 and O2 for each time
     for i in tqdm(range(time_lim), desc='Evolution loop'):
         
@@ -286,13 +223,13 @@ def Evolution2p_H_KI_Tinf(H, time_lim, N, A, B):
     Udag = U.H
     # print(U)
     
-    Cs = C2p_time(time_lim, A, B, U, Udag, Cs, N)
+    Cs = C2p_time(time_lim, A, B, U, Udag, Cs)
         
     print(f"\nTOTAL --- {time() - start_time} seconds ---" )
     flag = '2p_H_KI_with_Tinf_state'
     return [Cs, flag]
 
-def Evolution2p_U_KI_Tinf(U, time_lim, N, A, B):
+def Evolution2p_U_KI_Tinf(U, time_lim, A, B):
     
     start_time = time() 
     
@@ -302,7 +239,7 @@ def Evolution2p_U_KI_Tinf(U, time_lim, N, A, B):
     # define dagger floquet operator
     Udag = U.H
 
-    Cs = C2p_time(time_lim, A, B, U, Udag, Cs, N)
+    Cs = C2p_time(time_lim, A, B, U, Udag, Cs)
     
     print(f"\nTOTAL --- {time() - start_time} seconds ---" )
     flag = '2p_U_KI_with_Tinf_state'
@@ -405,13 +342,13 @@ def TFIM_2pC_chaos_parameter(N, J, x, z, time_lim, evolution='U'):
     
     if evolution=='H':
                 
-        Cs_mone, _ = Evolution2p_H_KI_Tinf(H_mone, time_lim, N, A_mone, B_mone)
-        Cs_one, _ = Evolution2p_H_KI_Tinf(H_one, time_lim, N, A_one, B_one)
+        Cs_mone, _ = Evolution2p_H_KI_Tinf(H_mone, time_lim, A_mone, B_mone)
+        Cs_one, _ = Evolution2p_H_KI_Tinf(H_one, time_lim, A_one, B_one)
         
     elif evolution=='U':
             
-        Cs_mone, _ = Evolution2p_U_KI_Tinf(U_mone, time_lim, N, A_mone, B_mone)
-        Cs_one, _ = Evolution2p_U_KI_Tinf(U_one, time_lim, N, A_one, B_one)
+        Cs_mone, _ = Evolution2p_U_KI_Tinf(U_mone, time_lim, A_mone, B_mone)
+        Cs_one, _ = Evolution2p_U_KI_Tinf(U_one, time_lim, A_one, B_one)
         # np.savez('2pC_'+flag+f'_time_lim{time_lim}_J{J:.2f}_hx{x:.2f}_hz{z:.2f}_basis_size{N}'+operators+'.npz', Cs=Cs)
     
     print(f"\n Evolution 2pC --- {time() - evol_time} seconds ---" )
@@ -420,7 +357,7 @@ def TFIM_2pC_chaos_parameter(N, J, x, z, time_lim, evolution='U'):
 
 #%% Calcular los correladores para un valor de theta y de B
 # define parameters of Heisenberg chain with inclined field 
-N = 11
+N = 3
 J = 1
 
 time_lim = 51
@@ -447,221 +384,64 @@ print('B=',B,'\ntheta=',theta)
 Cs_mone, Cs_one = TFIM_2pC_chaos_parameter(N, J, hx, hz, time_lim)
 # Cs = TFIM_2pC_chaos_parameter(N, B, J, theta, time_lim)[0]
 
-Cs = np.abs((Cs_mone + Cs_one)/2**N/N)
+Cs = (Cs_mone + Cs_one)/2**N/N
 
 # Cs_numpy = Cs
 # flag = 'Evol_alreves_2p_KI_with_Tinf_state_'
-# opi = str(int(N/2))
-# opj = str(int(N/2))
-opA = 'X'#+opi
-opB = opA#'Z_'+opj
-paridad = 'par'
-operators = '_A'+opA+'_B'+opB
-BC = 'PBC'
-flag = 'propagator_2p_KI_with_Tinf_state_'
-# np.savez('2pC_'+flag+f'_time_lim{time_lim}_J{J:.2f}_hx{hx:.2f}_hz{hz:.2f}_basis_size{N}'+operators+'.npz', Cs=Cs)
-#%% Comparación de contribuciones Cs por paridad
-# Cs_mone = Cs_mone/2**N/N
-# Cs_one = Cs_one/2**N/N
-
-# plt.figure(figsize=(16,8))
-
-# y_Cs_U_mone = np.log10(Cs_mone/Cs_mone[0])
-# y_Cs_U_one = np.log10(Cs_one/Cs_one[0])
-
-# yfit_mone = np.log(Cs_mone)
-# yfit_one = np.log(Cs_one)
-
-# tmin = 0
-# tmax = 16
-
-# xs = times[tmin:tmax]
-# yp_mone = yfit_mone[tmin:tmax]
-# yp_one = yfit_one[tmin:tmax]
-
-# coefp_mone = np.polyfit(xs,yp_mone,1)
-# coefp_one = np.polyfit(xs,yp_one,1)
-
-# poly1d_fn_p_mone = np.poly1d(coefp_mone) #[b,m]
-# poly1d_fn_p_one = np.poly1d(coefp_one) #[b,m]
-
-# plt.plot(times, np.log10(1/4*np.exp(-times/6)), '-.k', lw=1, label='0.25exp(-t/6)')
-# plt.text(20, -.75, r'$m_2^{impar}=$'+f'{poly1d_fn_p_mone[1].real:.2}',
-#         verticalalignment='bottom', horizontalalignment='right',
-#         color='red', fontsize=15)
-# plt.text(20, -1.25, r'$m_2^{par}=$'+f'{poly1d_fn_p_one[1].real:.2}',
-#         verticalalignment='bottom', horizontalalignment='right',
-#         color='blue', fontsize=15)
-# plt.ylim(-4,0)
-# plt.ylabel(r'$log_{10}(C(t))$')
-# plt.plot(times,y_Cs_U_mone, 'o-r', ms=1, lw=2, label='impar', alpha=0.8)
-# plt.plot(times,y_Cs_U_one, 'o-b', ms=1, lw=2, label='par', alpha=0.8)
-# # plt.plot(xs, poly1d_fn_p(xs), '--r', lw=1)
-
-
-# print('impar',Cs_mone[0])
-# print('par',Cs_one[0])
-
-# plt.xlabel(r'$t$')
-
-# plt.xlim(-0.2,50.2)
-# plt.grid()
-# plt.legend(loc='best')
-
-# opA = 'X'#+opi
-# opB = opA#'X'
-# paridad = 'par'
-# operators = '_A'+opA+'_B'+opB
-# BC = 'PBC'
-# flag = 'Comparacion_contr_paridad_2p_KI_with_Tinf_state_'
-# plt.savefig(flag+BC+f'_time_lim{time_lim}_J{J:.2f}_hx{hx:.2f}_hz{hz:.2f}_theta{theta:.2f}_basis_size{N}'+paridad+operators+'_suma_de_contr_subesp_paridad.png', dpi=80)
-
-
-#%%
-
-
-
-plt.figure(figsize=(16,8))
-
-if hx == hz:
-    y_C2_U = np.log10(Cs)
-
-    yfit = np.log(Cs)
-    
-    tmin = 0
-    tmax = 16
-    
-    xs = times[tmin:tmax]
-    y = y_C2_U[tmin:tmax]
-    yp = yfit[tmin:tmax]
-    
-    coefp = np.polyfit(xs,yp,1)
-    poly1d_fn_p = np.poly1d(coefp) #[b,m]
-    mp, bp = poly1d_fn_p
-    
-    coef10 = np.polyfit(xs,y,1)
-    poly1d_fn10 = np.poly1d(coef10) #[b,m]
-    m, b = poly1d_fn10
-
-    # m = -0.0723824
-    print(r'$C_2$',poly1d_fn_p[1])
-    
-    plt.plot(xs, np.log10(np.exp(mp*xs+bp)), '-.k', lw=1, label=f'D exp(-t/{1/np.abs(mp):.0f})')
-    plt.plot(xs, m*xs+b, '-.k', lw=1, label=f'C 10**(-t/{1/np.abs(m):.0f})')
-    plt.text(20, -1, r'$m_2=$'+f'{poly1d_fn_p[1].real:.2}',
-            verticalalignment='bottom', horizontalalignment='right',
-            color='red', fontsize=15)
-    # plt.ylim(-4,0)
-    plt.ylabel(r'$log_{10}(C(t))$')
-    # plt.plot(times,np.log10((Cs_mone+Cs_one)/2**N/N), 'o-c', ms=1, lw=2, label='$L=$'+f'{N}', alpha=0.8)
-else:
-    y_C2_U = Cs
-    
-    if hz == 0:
-        DL = 0.485
-    elif hz == 0.4:
-        DL = 0.293
-    
-    plt.plot(times, DL*np.ones(time_lim), '-.k', lw=2, label=r'$D/L = $'+f'{DL:.3f}')
-    plt.ylabel(r'$C(t)$')
-plt.plot(times,y_C2_U, 'o-g', ms=1, lw=2, label='$L=$'+f'{N}', alpha=0.8)
-# plt.plot(xs, poly1d_fn_p(xs), '--r', lw=1)
-
-
-print(Cs[0])
-
-plt.xlabel(r'$t$')
-
-plt.xlim(-0,50)
-plt.grid()
-plt.legend(loc='best')
-
-plt.savefig(flag+BC+f'_time_lim{time_lim}_J{J:.2f}_hx{hx:.2f}_hz{hz:.2f}_theta{theta:.2f}_basis_size{N}'+paridad+operators+'_suma_de_contr_subesp_paridad.png', dpi=80)
-    # %%
-if hz == 0.4:
-    
-    yplot = np.log10(np.abs(Cs-DL))#np.abs(Cs-DM)#
-    
-    yfit = np.log(np.abs(Cs-DL))
-    
-    tmin = 0
-    tmax = 50
-    
-    xs = times[tmin:tmax]
-    yp = yfit[tmin:tmax]
-    
-    coefp = np.polyfit(xs,yp,1)
-    poly1d_fn_p = np.poly1d(coefp) #[b,m]
-    
-    pendiente = poly1d_fn_p[1]
-    oo = poly1d_fn_p[0]
-    
-    print(r'$C_2$',pendiente)
-    
-    
-    plt.figure(figsize=(16,8))
-    plt.plot(times, pendiente*times, '-.k', lw=2, label=r'$D/L = $'+f'{DL:.3f}')
-    plt.ylabel(r'$log_{10}(C(t)-D/L)$')
-    plt.plot(times, yplot, 'o-g', ms=1, lw=2, label='$L=$'+f'{N}', alpha=0.8)
-    plt.xlabel(r'$t$')
-    plt.xlim(-0,50)
-    plt.ylim(-4,0)
-    plt.grid()
-    plt.legend(loc='best')
-    plt.savefig('inset_1b_'+flag+BC+f'_time_lim{time_lim}_J{J:.2f}_hx{hx:.2f}_hz{hz:.2f}_theta{theta:.2f}_basis_size{N}'+paridad+operators+'_suma_de_contr_subesp_paridad.png', dpi=80)
-    #%%
-# plt.figure(figsize=(16,8))
-
-# if hx == hz:
-#     y_C2_U = np.log10(Cs)
-
-#     yfit = np.log(Cs)
-    
-#     tmin = 0
-#     tmax = 16
-    
-#     xs = times[tmin:tmax]
-#     yp = yfit[tmin:tmax]
-    
-#     coefp = np.polyfit(xs,yp,1)
-#     poly1d_fn_p = np.poly1d(coefp) #[b,m]
-    
-#     print(r'$C_2$',poly1d_fn_p[1])
-    
-#     plt.plot(times, np.log10(1/4*np.exp(-times/6)), '-.k', lw=2, label='0.25exp(-t/6)')
-#     plt.text(20, -1, r'$m_2=$'+f'{poly1d_fn_p[1].real:.2}',
-#             verticalalignment='bottom', horizontalalignment='right',
-#             color='red', fontsize=15)
-#     plt.ylim(-4,0)
-#     plt.ylabel(r'$log_{10}(C(t))$')
-# else:
-#     y_C2_U = Cs
-    
-#     if hz == 0:
-#         DL = 0.485
-#     elif hz == 0.4:
-#         DL = 0.293
-    
-#     plt.plot(times, np.mean(y_C2_U)*np.ones(time_lim), '-.k', lw=2, label=r'$D/L = $'+f'{DL:.3f}')
-#     plt.ylabel(r'$C(t)$')
-# plt.plot(times,y_C2_U, 'o:k', ms=1, lw=2, label='$L=$'+f'{N}', alpha=0.8)
-# # plt.plot(xs, poly1d_fn_p(xs), '--r', lw=1)
-
-
-# print(Cs[0])
-
-# plt.xlabel(r'$t$')
-
-# plt.xlim(-0.2,50.2)
-# plt.grid()
-# plt.legend(loc='best')
 # # opi = str(int(N/2))
+# # opj = str(int(N/2))
 # opA = 'X'#+opi
-# opB = opA#'X'
+# opB = opA#'Z_'+opj
 # paridad = 'par'
 # operators = '_A'+opA+'_B'+opB
 # BC = 'PBC'
 # flag = '2p_KI_with_Tinf_state_'
-# plt.savefig(flag+BC+f'_time_lim{time_lim}_J{J:.2f}_hx{hx:.2f}_hz{hz:.2f}_theta{theta:.2f}_basis_size{N}'+paridad+operators+'_suma_de_contr_subesp_paridad.png', dpi=80)
+# np.savez('2pC_'+flag+f'_time_lim{time_lim}_J{J:.2f}_hx{hx:.2f}_hz{hz:.2f}_basis_size{N}'+operators+'.npz', Cs=Cs)
+#%% Fidelidad diagonalización numpy qutip
+# from scipy.linalg import eig
 
+# hx = hx*np.ones(N)#np.sin(theta)*B*np.ones(N)
+# hz = hz*np.ones(N)#np.cos(theta)*B*np.ones(N)
+# Jz = J*np.ones(N)
 
+# H = TFIM(N, hx, hz, Jz)
+
+# e, evec = H.eigenstates()
+# en, envec = eig(H.full())
+# #%%
+# indx = np.real(en).argsort()#[::-1]
+# en_sort = en[indx]
+# envec_sort = np.real(envec[:,indx])
+
+# for i in range(len(e)):
+    
+#     print('i=',i)    
+    
+#     Qenvec = Qobj(envec_sort[:,i])
+#     Qenvec.dims = evec[i].dims
+    
+#     # print(H.matrix_element(evec[i].dag(), evec[i]), H.matrix_element(Qenvec.dag(),Qenvec))
+#     # print(e[i], en_sort[i])
+    
+    
+#     norm = evec[i].norm()
+#     # nnorm = Qenvec.norm()
+#     # print('Normas antes',norm,nnorm)
+    
+#     nnorm = Qenvec.norm()
+#     Qenvec = Qenvec/nnorm
+#     print('Normas después',norm,nnorm)
+    
+#     F = fidelity(evec[i], Qenvec)
+#     print('Fidelidad',F)
+# #%%
+
+# H_diag = np.diag(en)
+# # print(H_diag)
+
+# C = np.column_stack([vec for vec in envec])
+# Cinv = np.matrix(C).H
+
+# H = C@H_diag@Cinv
+
+# hinton(Qobj(H))
