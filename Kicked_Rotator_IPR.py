@@ -257,14 +257,14 @@ def expand_in_basis(state, basis):
 def normalize(array):
     return (array - min(array))/(max(array)-min(array))
 
-def F(N,r,x,y,lim_suma=2):
+def F(N,r,x,y,lim_suma=4):
     coefsnu = np.array([np.exp(-np.pi*N/r*(nu-x)**2-1j*2*np.pi*N*y*nu) for nu in range(-lim_suma, +lim_suma)])
     return np.sum(coefsnu)
 
 def coherent_state(N, q0, p0, sigma, cuasiq=0):
     hbar = 1/(2*np.pi*N)
     # cte = ((4*np.pi*hbar)/(sigma**2))**(1/4)
-    cte = (2/(N*sigma**2))**(1/4)
+    # cte = (2/(N*sigma**2))**(1/4)
     # z = 1/np.sqrt(2)*(q0/sigma - 1j*sigma*p0)
     # lim_suma = 2#int(N/4)
     # zconj = z.conjugate()
@@ -282,12 +282,16 @@ def coherent_state(N, q0, p0, sigma, cuasiq=0):
         # print('sum(coefsnu)',np.sum(coefsnu))
         coef = coefq*F(N, sigma**2, -np.abs(q0-Q), -np.abs(p0-cuasiq/N))# Q-q0, -p0)#
         state[q] = coef
-    return Qobj(state/np.linalg.norm(state))
+        
+    nrm = np.linalg.norm(state)
+    # print('norm state', nrm)
+    return Qobj(state/nrm)
 
 def base_gaussiana(N, sigma):
     hbar = 1/(2*np.pi*N)
     paso = np.sqrt(hbar)
     total = round(1/paso)
+    # print(total)
     # print('total',total)
     qs = [i*paso for i in range(total)]
     # print(np.array(qs)*N)
@@ -305,21 +309,21 @@ def base_gaussiana(N, sigma):
     print(cont)
     return basis
 #%%
-N = 1000
+N = 2**9#11
 hbar = 1/(2*np.pi*N)
 # q0 = 0
 # p0 = 2/10
-sigma = 1#np.power(hbar,1/4)
+sigma = 1#np.power(hbar,1/2)
 # state = coherent_state(N, q0, p0, sigma)
 # print(state, np.linalg.norm(state))
 
-# _, basis = base_integrable(N, K=1)
+_, basis = base_integrable(N, K=0)
 start_time = time()
-basis = base_gaussiana(N,sigma)
+# basis = base_gaussiana(N,sigma)
 print('Duration: ', time()-start_time)
 
 # #%%
-# index = 100#int(len(basis)/2)
+# index = int(len(basis)/2)
 
 # vec = basis[index].full()
 # vec = vec/np.linalg.norm(vec)
@@ -327,18 +331,19 @@ print('Duration: ', time()-start_time)
 # x = np.arange(N)
 # y = np.abs(vec)**2
 # plt.plot(x, y, '.-')
-#%%
+#
 # K = 5
 # U = Qobj(UU(K, N))
 # ev, evec = U.eigenstates()
-# vec = evec[0]
-# coefs = expand_in_basis(vec, basis)
-# print(np.sum(np.abs(coefs))**2)
-#%%
+# for vec in evec:
+# # vec = evec[2]
+#     coefs = expand_in_basis(vec, basis)
+#     print(np.sum(np.abs(coefs))**2)
+#
 
-tipo_de_base = 'gaussiana'#'integrable'
+tipo_de_base = 'integrable_wK0'#'gaussiana'#
 Kpaso = .5
-Ks = np.arange(1,10.1,Kpaso)#
+Ks = np.arange(0,10.1,Kpaso)#
 
 IPR_means = np.zeros((len(Ks)))
 IPR_skews = np.zeros((len(Ks)))
@@ -352,7 +357,7 @@ for j, K in tqdm(enumerate(Ks), desc=f'K loop total{len(Ks)}'):
         coefs = expand_in_basis(vec, basis)
         if tipo_de_base=='gaussiana':
             coefs /= np.sqrt(np.sum(np.abs(coefs))**2)
-            print(np.sum(np.abs(coefs))**2)
+            # print(np.sum(np.abs(coefs))**2)
         aux = IPR(coefs)
         IPRs[i] = aux
     
@@ -365,10 +370,9 @@ for j, K in tqdm(enumerate(Ks), desc=f'K loop total{len(Ks)}'):
     plt.xlabel('IPR')
     # plt.xlim(0,300)
     plt.grid(True)
-    plt.savefig(f'IPR_distribution_K{K}_N{N}_basis_integrable_wK1.png', dpi=80)
+    # plt.savefig(f'IPR_distribution_K{K}_N{N}_basis_integrable_wK1.png', dpi=80)
+np.savez(f'IPR_mean_skew_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_N{N}_basis_'+tipo_de_base+'.npz', IPR_means = IPR_means, IPR_skews = IPR_skews, Ks = Ks)
 #%%
-np.savez(f'IPR_mean_skew_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_N{N}_basis_integrable_wK1.npz', IPR_means = IPR_means, IPR_skews = IPR_skews, Ks = Ks)
-
 archives = np.load(f'r_vs_K_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_N{N}.npz')
 rs = archives['rs']
 
@@ -387,3 +391,27 @@ plt.xlabel('K')
 plt.grid(True)
 plt.legend(loc='best')
 plt.savefig(f'IPR_vs_Ks_N{N}_basis_'+tipo_de_base+'_wK1.png', dpi=80)
+#%%
+tipo_de_base = 'gaussiana'#'integrable_wK0'#
+archives = np.load(f'IPR_mean_skew_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_N{N}_basis_'+tipo_de_base+'.npz')
+IPR_gauss = archives['IPR_means']
+
+y_mean = normalize(IPR_means)
+
+tipo_de_base = 'integrable_wK0'#'gaussiana'#
+archives = np.load(f'IPR_mean_skew_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_N{N}_basis_'+tipo_de_base+'.npz')
+IPR_int = archives['IPR_means']
+
+y_gauss = normalize(IPR_gauss)
+y_int = normalize(IPR_int)
+
+plt.figure(figsize=(16,8))
+plt.plot(Ks, y_gauss, 'r.-', label='gauss')
+plt.plot(Ks, y_int, 'b.-', label='int')
+# plt.vlines(0, 0, 1, ls='dashed', alpha=0.5)
+plt.ylabel('IPR')
+plt.xlabel('K')
+# plt.xlim(4,10)
+plt.grid(True)
+plt.legend(loc='best')
+plt.savefig(f'IPR_vs_Ks_N{N}_distintas_bases_gaussiana_'+ tipo_de_base +'.png', dpi=80)
