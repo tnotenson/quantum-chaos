@@ -249,9 +249,9 @@ def IPR(state):
     IPR = 1/np.sum(coef4)
     return IPR
 
-def expand_in_basis(state, basis):
-    assert type(state) == type(basis[0]), 'r u sure this a Qobj?'
-    coefs = np.array([(state.dag()*basis[i]).full() for i in range(len(basis))])
+def expand_in_basis(state, base):
+    assert type(state) == type(base[0]), 'r u sure this a Qobj?'
+    coefs = np.array([(state.dag()*base[i]).full() for i in range(len(base))])
     return coefs
 
 def normalize(array):
@@ -287,29 +287,45 @@ def coherent_state(N, q0, p0, sigma, cuasiq=0):
     # print('norm state', nrm)
     return Qobj(state/nrm)
 
-def base_gaussiana(N, sigma):
+def coherent_state_Augusto(N, q0, p0, lim_suma=4):#, cuasiq=0
+    state = np.zeros((N), dtype=np.complex_)
+    for q in range(N):
+        # cte = np.power(2/N,4)
+        # coefq = np.exp(np.pi/(2*N)*(q0**2+p0**2))#+1j*2*np.pi/N*p0*(q-q0/2))
+        coefsnu = np.array([np.exp(-np.pi/N*(nu*N-(q0-q))**2-1j*2*np.pi/N*p0*(nu*N-q+q0/2)) for nu in range(-lim_suma, +lim_suma)])#-nu*N*cuasiq/p0#cte*coefq*
+        coef = np.sum(coefsnu)
+        state[q] = coef
+    nrm = np.linalg.norm(state)
+    # print('norm state', nrm)
+    return Qobj(state/(nrm*np.sqrt(4*np.pi)))
+
+def base_gaussiana(N, sigma=1):
     hbar = 1/(2*np.pi*N)
-    paso = np.sqrt(hbar)
-    total = round(1/paso)
+    paso = np.sqrt(N)
+    total = round(N/paso)
     # print(total)
     # print('total',total)
-    qs = [i*paso for i in range(total)]
-    # print(np.array(qs)*N)
-    ps = [i*paso for i in range(total)]
-    basis = []
+    qs = np.linspace(0,N-1,total)#[i*paso for i in range(total)]
+    # print(np.array(qs))
+    ps = np.linspace(0,N-1,total)#[i*paso for i in range(total)]
+    base = []
     cont=0
     for i,q in enumerate(qs):
         for j,p in enumerate(ps):
-            state = coherent_state(N,q,p,sigma)
-            # print(np.linalg.norm(state))
+            state = coherent_state_Augusto(N,q,p)
+            # print(f'norma base gaussiana {q},{p}', np.linalg.norm(state))
             if np.linalg.norm(state)==0:
-                print('q0,p0',q*N,p*N)
+                print('q0,p0',q,p)
                 cont+=1
-            basis.append(state)
-    print(cont)
-    return basis
+            base.append(state)
+    print('cant nulos', cont)
+    return base
+
+# def husimi():
+    
+#     return
 #%%
-N = 2**9#11
+N = 2**11#11
 hbar = 1/(2*np.pi*N)
 # q0 = 0
 # p0 = 2/10
@@ -317,31 +333,39 @@ sigma = 1#np.power(hbar,1/2)
 # state = coherent_state(N, q0, p0, sigma)
 # print(state, np.linalg.norm(state))
 
-_, basis = base_integrable(N, K=0)
+# _, base = base_integrable(N, K=0)
 start_time = time()
-# basis = base_gaussiana(N,sigma)
+base = base_gaussiana(N,sigma)
 print('Duration: ', time()-start_time)
 
 # #%%
-# index = int(len(basis)/2)
+# index = -1000#int(len(base)/2)
 
-# vec = basis[index].full()
-# vec = vec/np.linalg.norm(vec)
+# vec = base[index].full()
+# # vec = vec#/np.linalg.norm(vec)
+
+# # ver por qué "vec" da nan
 
 # x = np.arange(N)
 # y = np.abs(vec)**2
+# plt.figure(figsize=(12,8))
 # plt.plot(x, y, '.-')
+# plt.yscale('log')
+# plt.xlabel(r'$q$')
+# plt.ylabel(r'$\psi(q)$')
+# plt.grid()
+# plt.savefig(f'coherent_state_N{N}_index{index}.png',dpi=80)
+#%%
+K = 9
+U = Qobj(UU(K, N))
+ev, evec = U.eigenstates()
+for vec in evec:
+# vec = evec[2]
+    coefs = expand_in_basis(vec, base)
+    print(np.sum(np.abs(coefs))**2/(4*np.pi))
 #
-# K = 5
-# U = Qobj(UU(K, N))
-# ev, evec = U.eigenstates()
-# for vec in evec:
-# # vec = evec[2]
-#     coefs = expand_in_basis(vec, basis)
-#     print(np.sum(np.abs(coefs))**2)
-#
-
-tipo_de_base = 'integrable_wK0'#'gaussiana'#
+    #%%
+tipo_de_base = 'gaussiana'#'integrable_wK0'#
 Kpaso = .5
 Ks = np.arange(0,10.1,Kpaso)#
 
@@ -354,7 +378,7 @@ for j, K in tqdm(enumerate(Ks), desc=f'K loop total{len(Ks)}'):
     ev, evec = U.eigenstates()
         
     for i, vec in tqdm(enumerate(evec), desc=f'eigenstates loop total {N}'):
-        coefs = expand_in_basis(vec, basis)
+        coefs = expand_in_basis(vec, base)
         if tipo_de_base=='gaussiana':
             coefs /= np.sqrt(np.sum(np.abs(coefs))**2)
             # print(np.sum(np.abs(coefs))**2)
@@ -364,54 +388,54 @@ for j, K in tqdm(enumerate(Ks), desc=f'K loop total{len(Ks)}'):
     IPR_means[j] = np.mean(IPRs)
     IPR_skews[j] = skew(IPRs)
     
-    plt.figure(figsize=(16,8))
-    plt.title(f'K={K}')
-    plt.hist(IPRs)
-    plt.xlabel('IPR')
+    # plt.figure(figsize=(16,8))
+    # plt.title(f'K={K}')
+    # plt.hist(IPRs)
+    # plt.xlabel('IPR')
     # plt.xlim(0,300)
-    plt.grid(True)
+    # plt.grid(True)
     # plt.savefig(f'IPR_distribution_K{K}_N{N}_basis_integrable_wK1.png', dpi=80)
 np.savez(f'IPR_mean_skew_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_N{N}_basis_'+tipo_de_base+'.npz', IPR_means = IPR_means, IPR_skews = IPR_skews, Ks = Ks)
 #%%
-archives = np.load(f'r_vs_K_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_N{N}.npz')
-rs = archives['rs']
+# archives = np.load(f'r_vs_K_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_N{N}.npz')
+# rs = archives['rs']
 
-r_normed = normalize(rs)
-y_mean = normalize(IPR_means)
-y_skew = normalize(IPR_skews)
+# r_normed = normalize(rs)
+# y_mean = normalize(IPR_means)
+# y_skew = normalize(IPR_skews)
 
-plt.figure(figsize=(16,8))
-plt.plot(Ks, y_mean, 'r.-', label='mean')
-# plt.plot(Ks, y_skew, 'b.-', label='skew')
-plt.plot(Ks, r_normed, 'k.-', label='r')
-# plt.vlines(0, 0, 1, ls='dashed', alpha=0.5)
-plt.ylabel('IPR')
-plt.xlabel('K')
-# plt.xlim(4,10)
-plt.grid(True)
-plt.legend(loc='best')
-plt.savefig(f'IPR_vs_Ks_N{N}_basis_'+tipo_de_base+'_wK1.png', dpi=80)
+# plt.figure(figsize=(16,8))
+# plt.plot(Ks, y_mean, 'r.-', label='mean')
+# # plt.plot(Ks, y_skew, 'b.-', label='skew')
+# plt.plot(Ks, r_normed, 'k.-', label='r')
+# # plt.vlines(0, 0, 1, ls='dashed', alpha=0.5)
+# plt.ylabel('IPR')
+# plt.xlabel('K')
+# # plt.xlim(4,10)
+# plt.grid(True)
+# plt.legend(loc='best')
+# plt.savefig(f'IPR_vs_Ks_N{N}_basis_'+tipo_de_base+'_wK1.png', dpi=80)
 #%%
-tipo_de_base = 'gaussiana'#'integrable_wK0'#
-archives = np.load(f'IPR_mean_skew_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_N{N}_basis_'+tipo_de_base+'.npz')
-IPR_gauss = archives['IPR_means']
+# tipo_de_base = 'gaussiana'#'integrable_wK0'#
+# archives = np.load(f'IPR_mean_skew_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_N{N}_basis_'+tipo_de_base+'.npz')
+# IPR_gauss = archives['IPR_means']
 
-y_mean = normalize(IPR_means)
+# y_mean = normalize(IPR_means)
 
-tipo_de_base = 'integrable_wK0'#'gaussiana'#
-archives = np.load(f'IPR_mean_skew_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_N{N}_basis_'+tipo_de_base+'.npz')
-IPR_int = archives['IPR_means']
+# tipo_de_base = 'integrable_wK0'#'gaussiana'#
+# archives = np.load(f'IPR_mean_skew_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_N{N}_basis_'+tipo_de_base+'.npz')
+# IPR_int = archives['IPR_means']
 
-y_gauss = normalize(IPR_gauss)
-y_int = normalize(IPR_int)
+# y_gauss = normalize(IPR_gauss)
+# y_int = normalize(IPR_int)
 
-plt.figure(figsize=(16,8))
-plt.plot(Ks, y_gauss, 'r.-', label='gauss')
-plt.plot(Ks, y_int, 'b.-', label='int')
-# plt.vlines(0, 0, 1, ls='dashed', alpha=0.5)
-plt.ylabel('IPR')
-plt.xlabel('K')
-# plt.xlim(4,10)
-plt.grid(True)
-plt.legend(loc='best')
-plt.savefig(f'IPR_vs_Ks_N{N}_distintas_bases_gaussiana_'+ tipo_de_base +'.png', dpi=80)
+# plt.figure(figsize=(16,8))
+# plt.plot(Ks, y_gauss, 'r.-', label='gauss')
+# plt.plot(Ks, y_int, 'b.-', label='int')
+# # plt.vlines(0, 0, 1, ls='dashed', alpha=0.5)
+# plt.ylabel('IPR')
+# plt.xlabel('K')
+# # plt.xlim(4,10)
+# plt.grid(True)
+# plt.legend(loc='best')
+# plt.savefig(f'IPR_vs_Ks_N{N}_distintas_bases_gaussiana_'+ tipo_de_base +'.png', dpi=80)
