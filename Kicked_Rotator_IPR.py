@@ -250,15 +250,15 @@ def IPR(state):
     return IPR
 
 def expand_in_basis(state, base):
-    assert type(state) == type(base[0]), 'r u sure this a Qobj?'
-    coefs = np.array([(state.dag()*base[i]).full() for i in range(len(base))])
+    assert type(state) == type(base[0]), 'r u sure this is a Qobj?'
+    coefs = np.array([(state.dag()*base[i]).full()/np.sqrt(4*np.pi) for i in range(len(base))])
     return coefs
 
 def normalize(array):
     return (array - min(array))/(max(array)-min(array))
 
 def F(N,r,x,y,lim_suma=4):
-    coefsnu = np.array([np.exp(-np.pi*N/r*(nu-x)**2-1j*2*np.pi*N*y*nu) for nu in range(-lim_suma, +lim_suma)])
+    coefsnu = np.array([np.exp(-np.pi*N/r*(nu-x)**2-1j*2*np.pi*N*y*nu) for nu in range(-lim_suma, +lim_suma)], dtype=np.complex_)
     return np.sum(coefsnu)
 
 def coherent_state(N, q0, p0, sigma, cuasiq=0):
@@ -288,21 +288,24 @@ def coherent_state(N, q0, p0, sigma, cuasiq=0):
     return Qobj(state/nrm)
 
 def coherent_state_Augusto(N, q0, p0, lim_suma=4):#, cuasiq=0
-    state = np.zeros((N), dtype=np.complex_)
-    for q in range(N):
-        # cte = np.power(2/N,4)
-        # coefq = np.exp(np.pi/(2*N)*(q0**2+p0**2))#+1j*2*np.pi/N*p0*(q-q0/2))
-        coefsnu = np.array([np.exp(-np.pi/N*(nu*N-(q0-q))**2-1j*2*np.pi/N*p0*(nu*N-q+q0/2)) for nu in range(-lim_suma, +lim_suma)])#-nu*N*cuasiq/p0#cte*coefq*
-        coef = np.sum(coefsnu)
-        state[q] = coef
-    nrm = np.linalg.norm(state)
+    state = np.zeros((N), dtype=np.complex_) # creo el estado como array de ceros 
+    # cte = np.power(2/N,4) # cte de norm. 1
+    # coefq = np.exp(np.pi/(2*N)*(q0**2+p0**2)) # cte de norm. 2
+    for q in range(N): #calculo el coeficiente para cada q
+        coefsnu = np.zeros((2*lim_suma+1), dtype=np.complex_) # creo un array de ceros
+        for i,nu in enumerate(np.arange(-lim_suma,lim_suma+1)):
+            coefnu = np.exp(-np.pi/N*(nu*N-(q0-q))**2-1j*2*np.pi/N*p0*(nu*N-q+q0/2)) 
+            coefsnu[i] = coefnu # lo voy llenando con los términos de la sumatoria
+        coef = np.sum(coefsnu) # hago la sumatoria
+        state[q] = coef # agrego el coeficiente para el q fijo
+    nrm = np.linalg.norm(state) # calculo la norma
     # print('norm state', nrm)
-    return Qobj(state/(nrm*np.sqrt(4*np.pi)))
+    return Qobj(state/nrm) # normalizo
 
 def base_gaussiana(N, sigma=1):
-    hbar = 1/(2*np.pi*N)
+    # hbar = 1/(2*np.pi*N)
     paso = np.sqrt(N)
-    total = round(N/paso)
+    total = round(N/paso)#round(np.sqrt(N))#
     # print(total)
     # print('total',total)
     qs = np.linspace(0,N-1,total)#[i*paso for i in range(total)]
@@ -325,8 +328,8 @@ def base_gaussiana(N, sigma=1):
     
 #     return
 #%%
-N = 2**11#11
-hbar = 1/(2*np.pi*N)
+N = 2**10
+# hbar = 1/(2*np.pi*N)
 # q0 = 0
 # p0 = 2/10
 sigma = 1#np.power(hbar,1/2)
@@ -355,47 +358,107 @@ print('Duration: ', time()-start_time)
 # plt.ylabel(r'$\psi(q)$')
 # plt.grid()
 # plt.savefig(f'coherent_state_N{N}_index{index}.png',dpi=80)
-#%%
+#
 K = 9
 U = Qobj(UU(K, N))
 ev, evec = U.eigenstates()
-for vec in evec:
+index = int(N/2)
+norms = np.zeros((len(evec)))
+overlaps_coherentes = np.zeros((len(evec)))
+overlaps = np.zeros((len(evec)))
+coefindex = np.conj(expand_in_basis(evec[index], base))
+for j,vec in enumerate(evec):
 # vec = evec[2]
     coefs = expand_in_basis(vec, base)
-    print(np.sum(np.abs(coefs))**2/(4*np.pi))
-#
+    overlap_coherentes = np.sum(coefindex*coefs)
+    nrm = np.sum(np.abs(coefs))**2#/(4*np.pi)
+    norms[j] = nrm
+    overlaps_coherentes[j] = overlap_coherentes
+    overlaps[j] = (evec[index].dag()*vec)[0,0]
+
+np.savez(f'norms_vs_eigenstates_N{N}_basis_K{K}_sin4pi_dtypecomplex.npz', norms=norms)
+
+plt.figure(figsize=(16,8))
+plt.plot(np.arange(N), norms, 'r.-', label=f'N={N}')
+# plt.vlines(0, 0, 1, ls='dashed', alpha=0.5)
+plt.ylabel(r'$|\langle \psi | \psi\rangle|^2$')
+plt.xlabel('eigenstate')
+# plt.xlim(4,10)
+plt.grid(True)
+plt.legend(loc='best')
+plt.savefig(f'norms_vs_eigenstates_N{N}_basis_K{K}_sin4pi_dtypecomplex.png', dpi=80)
+
+plt.figure(figsize=(16,16))
+plt.plot(overlaps, overlaps_coherentes, 'r.-', lw=0.5, ms=10.5, label=f'N={N}')
+plt.plot(overlaps, overlaps, 'b-', label=f'y=x')
+# plt.vlines(0, 0, 1, ls='dashed', alpha=0.5)
+plt.ylabel(r'$\langle \psi | \psi\rangle_{coherentes}$')
+plt.xlabel(r'$\langle \psi | \psi\rangle$')
+plt.xlim(-0.1,0.1)
+plt.ylim(-0.1,0.1)
+plt.grid(True)
+plt.legend(loc='best')
+plt.savefig(f'zoom_overlaps_coherentes_vs_overlaps_N{N}_basis_K{K}_sin4pi_dtypecomplex.png', dpi=80)
+
+#%% plot norms vs N
+from scipy.optimize import curve_fit
+def func(x,m,b):
+    return m*x+b
+
+
+Ns = 2**np.arange(3,12)
+norm_means = np.zeros((len(Ns)))
+for j,N in enumerate(Ns):
+    archives = np.load(f'norms_vs_eigenstates_N{N}_basis_K{K}_sin4pi_dtypecomplex.npz')
+    norms = archives['norms']
+    norm_means[j] = norms.mean()
+    
+par, covar = curve_fit(func, Ns, norm_means)
+sigma_m, sigma_b = np.sqrt(np.diag(covar))
+m, b = par
+
+plt.figure(figsize=(16,8))
+plt.plot(Ns, norm_means, 'r.-')
+plt.ylabel(r'$\langle|\langle \psi | \psi\rangle|^2\rangle_{eig}$')
+plt.xlabel(r'$N$')
+# plt.xlim(4,10)
+plt.grid(True)
+# plt.legend(loc='best')
+plt.savefig(f'norms_vs_N{N}_basis_K{K}_sin4pi_dtypecomplex.png', dpi=80)
+
+print('pendiente',m,'ordenada al origen',b)
     #%%
-tipo_de_base = 'gaussiana'#'integrable_wK0'#
-Kpaso = .5
-Ks = np.arange(0,10.1,Kpaso)#
+# tipo_de_base = 'gaussiana'#'integrable_wK0'#
+# Kpaso = .5
+# Ks = np.arange(0,10.1,Kpaso)#
 
-IPR_means = np.zeros((len(Ks)))
-IPR_skews = np.zeros((len(Ks)))
+# IPR_means = np.zeros((len(Ks)))
+# IPR_skews = np.zeros((len(Ks)))
 
-for j, K in tqdm(enumerate(Ks), desc=f'K loop total{len(Ks)}'):
-    IPRs = np.zeros((N))    
-    U = Qobj(UU(K, N))
-    ev, evec = U.eigenstates()
+# for j, K in tqdm(enumerate(Ks), desc=f'K loop total{len(Ks)}'):
+#     IPRs = np.zeros((N))    
+#     U = Qobj(UU(K, N))
+#     ev, evec = U.eigenstates()
         
-    for i, vec in tqdm(enumerate(evec), desc=f'eigenstates loop total {N}'):
-        coefs = expand_in_basis(vec, base)
-        if tipo_de_base=='gaussiana':
-            coefs /= np.sqrt(np.sum(np.abs(coefs))**2)
-            # print(np.sum(np.abs(coefs))**2)
-        aux = IPR(coefs)
-        IPRs[i] = aux
+#     for i, vec in tqdm(enumerate(evec), desc=f'eigenstates loop total {N}'):
+#         coefs = expand_in_basis(vec, base)
+#         if tipo_de_base=='gaussiana':
+#             coefs /= np.sqrt(np.sum(np.abs(coefs))**2)
+#             # print(np.sum(np.abs(coefs))**2)
+#         aux = IPR(coefs)
+#         IPRs[i] = aux
     
-    IPR_means[j] = np.mean(IPRs)
-    IPR_skews[j] = skew(IPRs)
+#     IPR_means[j] = np.mean(IPRs)
+#     IPR_skews[j] = skew(IPRs)
     
-    # plt.figure(figsize=(16,8))
-    # plt.title(f'K={K}')
-    # plt.hist(IPRs)
-    # plt.xlabel('IPR')
-    # plt.xlim(0,300)
-    # plt.grid(True)
-    # plt.savefig(f'IPR_distribution_K{K}_N{N}_basis_integrable_wK1.png', dpi=80)
-np.savez(f'IPR_mean_skew_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_N{N}_basis_'+tipo_de_base+'.npz', IPR_means = IPR_means, IPR_skews = IPR_skews, Ks = Ks)
+#     # plt.figure(figsize=(16,8))
+#     # plt.title(f'K={K}')
+#     # plt.hist(IPRs)
+#     # plt.xlabel('IPR')
+#     # plt.xlim(0,300)
+#     # plt.grid(True)
+#     # plt.savefig(f'IPR_distribution_K{K}_N{N}_basis_integrable_wK1.png', dpi=80)
+# np.savez(f'IPR_mean_skew_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_N{N}_basis_'+tipo_de_base+'.npz', IPR_means = IPR_means, IPR_skews = IPR_skews, Ks = Ks)
 #%%
 # archives = np.load(f'r_vs_K_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_N{N}.npz')
 # rs = archives['rs']
