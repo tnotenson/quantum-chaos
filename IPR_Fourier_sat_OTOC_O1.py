@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Tue Mar 29 17:49:09 2022
+Created on Tue May 24 14:47:26 2022
 
 @author: tomasnotenson
 """
@@ -10,9 +10,18 @@ import matplotlib.pyplot as plt
 import numpy as np
 from numba import jit
 from qutip import *
-import time
+from time import time 
 from tqdm import tqdm # customisable progressbar decorator for iterators
 from cmath import phase
+from scipy.stats import skew
+import time 
+plt.rcParams.update({
+"text.usetex": True,
+"font.family": "sans-serif",
+"font.sans-serif": ["Helvetica"], "font.size": 24})
+
+def normalize(array):
+    return (array - min(array))/(max(array)-min(array))
 
 @jit(nopython=True, parallel=True, fastmath = True)#, cache=True)#(cache=True)#(nopython=True)
 def FF(N, x1 = 0, p1 = 0):
@@ -89,43 +98,48 @@ def O1_numpy_Tinf(A, B_t):
     return O1
 
 @jit(nopython=True, parallel=True, fastmath = True)
+def O2_numpy_Tinf(A, B_t):
+    O2 = np.trace(B_t@B_t@A@A)
+    return O2
+
+@jit(nopython=True, parallel=True, fastmath = True)
 def C2_numpy_Tinf(A, B_t):
     C2 = np.trace(B_t@A)
     return C2
 
-def C2_Evolution_FFT_numpy_Tinf(time_lim, N, Ks, A, B, op = 'X'):
+# def C2_Evolution_FFT_numpy_Tinf(time_lim, N, Ks, A, B, op = 'X'):
     
-    start_time = time.time() 
+#     start_time = time.time() 
     
-    C2_Ks = np.zeros((len(Ks), time_lim), dtype=np.complex_)#[] # OTOC for each Ks
+#     C2_Ks = np.zeros((len(Ks), time_lim), dtype=np.complex_)#[] # OTOC for each Ks
     
-    for j, K in tqdm(enumerate(Ks), desc='Primary loop'):
+#     for j, K in tqdm(enumerate(Ks), desc='Primary loop'):
         
-        C2 = np.zeros((time_lim), dtype=np.complex_)#[]
+#         C2 = np.zeros((time_lim), dtype=np.complex_)#[]
         
-        # Distinct evolution for each operator X or P
-        U = UU(K, N, op)
-        Udag = U.H
-        # Calculo el OTOC para cada tiempo pero para un K fijo
-        for i in tqdm(range(time_lim), desc='Secondary loop'):
+#         # Distinct evolution for each operator X or P
+#         U = UU(K, N, op)
+#         Udag = U.H
+#         # Calculo el OTOC para cada tiempo pero para un K fijo
+#         for i in tqdm(range(time_lim), desc='Secondary loop'):
             
-            if i==0:
-                B_t = B
-            else:
-                # FFT for efficient evolution
-                # diagonal evolution
-                B_t = Evolucion_numpy(B_t, U, Udag)# U*B_t*U.dag()
+#             if i==0:
+#                 B_t = B
+#             else:
+#                 # FFT for efficient evolution
+#                 # diagonal evolution
+#                 B_t = Evolucion_numpy(B_t, U, Udag)# U*B_t*U.dag()
                                
 
-            C_t = C2_numpy_Tinf(A, B_t)
+#             C_t = C2_numpy_Tinf(A, B_t)
             
-            C2[i] = C_t#OTOC.append(np.abs(C_t.data.toarray()))
+#             C2[i] = C_t#OTOC.append(np.abs(C_t.data.toarray()))
 
-        C2_Ks[j,:] = C2
+#         C2_Ks[j,:] = C2
         
-    print(f"\nTOTAL --- {time.time() - start_time} seconds ---" )
-    flag = '2pC_FFT_with_Tinf_state'
-    return [C2_Ks, flag]
+#     print(f"\nTOTAL --- {time.time() - start_time} seconds ---" )
+#     flag = '2pC_FFT_with_Tinf_state'
+#     return [C2_Ks, flag]
 
 # Calcultes r parameter in the 10% center of the energy "ener" spectrum. If plotadjusted = True, returns the magnitude adjusted to Poisson = 0 or WD = 1
 def r_chaometer(ener,plotadjusted):
@@ -188,10 +202,9 @@ def O1_Evolution_FFT_numpy_Tinf(time_lim, N, Ks, A, B, op = 'X', r=True):
     if r:
         return [O1_Ks, r_Ks, flag]
     return [O1_Ks, flag]
-
-
+#%%
 # Define basis size        
-N = 2**11 # Tiene que ser par
+N = 2**7 # Tiene que ser par
 
 # Define position and momentum values in the torus
 qs = np.arange(0, N) #take qs in [0;N) with qs integer
@@ -246,85 +259,86 @@ t2 = time.time()
 t3 = time.time()
 print(f'Tiempo estado: {t3-t2}')
 # Define time array
-time_lim = int(2e1+1) # number of kicks
+time_lim = int(6e3) # number of kicks
 
 # ### compute OTOC with O1 and O2 in the "Heisenberg picture"
 O1_Ks, flag = O1_Evolution_FFT_numpy_Tinf(time_lim, N, Ks, A, B, op ='X', r=False)
 
-# O1 = np.abs(O1_Ks)
+O1 = np.abs(O1_Ks)/N
 # # define file name
-
-file = flag+f'_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_basis_size{N}_time_lim{time_lim}'+operators+'.npz'#+'_evolucion_al_reves' _centro{n0}
-np.savez(file, O1=O1_Ks)#, r_Ks=r_Ks)
-
-
-# N = 2**7  # Tiene que ser par
-
-plott = 'O1'#'C2'#'Var'#
-
-times = np.arange(0,time_lim)
-file = flag+f'_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_basis_size{N}_time_lim{time_lim}'+operators+'.npz'#+'_evolucion_al_reves' _centro{n0}
-# name = '4pC_FFT_with_Tinf_state_k_Kmin1_Kmax19.5_Kpaso0.5_basis_size2048_time_lim31AP_BP.npz'
-archives = np.load(file)
-
-pendientes = np.zeros((len(Ks)))
-
-# O1=archives['O1']
-# r_Ks=archives['r_Ks']
-O1 = O1_Ks
-
-# r_Ks = np.mean(r_Ks, axis=1)
-Kfrom = 0
-
-print(O1.shape)
-
-for k, K in enumerate(Ks):
-    
-    O1s = O1[k]
-    
-    tmin = 0
-    tmax = 16
-    xs = times[tmin:tmax]
-    
-    if plott == 'Var':
-        Var = (O1s - Cs**2)#/dimension#/N
-        y_Var = np.log10(Var)
-        y = y_Var[tmin:tmax]
-    elif plott == 'O1':
-        y_O1 = np.log10(O1s)
-        y = y_O1[tmin:tmax]
-    elif plott == 'C2':
-        y_Cs = np.log10(Cs**2)
-        y = y_Cs[tmin:tmax]
-
-    coef = np.polyfit(xs,y,1)
-    poly1d_fn = np.poly1d(coef) #[b,m]
-    m, b = poly1d_fn
-    
-    pendientes[k] = np.abs(m)
-
-pendientes_y = pendientes[Kfrom:]#
-
-np.savez('pendientes_'+file, pendientes_O1=pendientes_y)
 #%%
-pendientes_normed = (pendientes_y-min(pendientes_y))/(max(pendientes_y)-min(pendientes_y))
-# r_Ks = np.nan_to_num(r_Ks)
+index = -3
 
-# r_y = r_Ks[Kfrom:]# 
-# r_normed = (r_y - min(r_y))/(max(r_y)-min(r_y))
+y1 = O1[index]
 
-Kx = Ks[Kfrom:]
+times = np.arange(time_lim)
 
 plt.figure(figsize=(16,8))
-plt.title(f'A={opA}, B={opB}')
-plt.plot(Kx, pendientes_normed, '-b', lw=1.5, label='pendiente')
+plt.title(f'O1 a tiempos largos. A={opA}, B={opB}')
+plt.plot(times, y1, '-b', lw=1.5, label=f'K={Ks[index]}')
 # plt.plot(Kx, r_normed, '-r', lw=1.5, label='r')
 # plt.plot(Ks, 1-r_one, '-g', lw=1.5, label='1-r paridad +1')
-plt.ylabel(r'$\alpha$')
-plt.xlabel(r'$K$')
-plt.ylim(0,1)
+plt.xlabel(r'$t$')
+plt.ylabel(r'$O_1(t)$')
+# plt.ylim(0,1)
 # plt.xlim(-0.2,max(times)+0.2)
 plt.grid(True)
 plt.legend(loc = 'best')
-# plt.savefig('pendientes_y_r_vs_K_'+plott+'_'+flag+f'_time_lim{time_lim}_basis_size{N}'+operators+'.png', dpi=80)
-    
+plt.savefig(f'O1_vs_time_K{Ks[index]}_time_lim{time_lim}_basis_size{N}'+operators+'.png', dpi=80)
+#%%
+from scipy.fft import fft, ifft, fftfreq
+
+t_sat = 500
+M = len(y1[t_sat:])
+O1_fourier = fft(y1[t_sat:])
+xf = fftfreq(M, t_sat)[:M//2]
+yf = 2.0/M * np.abs(O1_fourier[0:M//2])
+
+
+plt.figure(figsize=(16,8))
+plt.title(f'O1 a tiempos largos. A={opA}, B={opB}')
+plt.plot(xf, yf, '-b', lw=1.5, label=f'K={Ks[index]}')
+# plt.plot(Kx, r_normed, '-r', lw=1.5, label='r')
+# plt.plot(Ks, 1-r_one, '-g', lw=1.5, label='1-r paridad +1')
+plt.xlabel(r'$\omega$')
+plt.ylabel(r'$O_1(\omega)$')
+# plt.ylim(0,1)
+# plt.xlim(-0.2,max(times)+0.2)
+plt.grid(True)
+plt.legend(loc = 'best')
+plt.savefig(f'O1_vs_freq_from_t_sat{t_sat}_K{Ks[index]}_time_lim{time_lim}_basis_size{N}'+operators+'.png', dpi=80)
+
+#%%
+
+def IPR_normed(vec):
+    PR = np.sum(np.abs(vec)**2)**2
+    nrm2 = np.sum(np.abs(vec))**2
+    IPR = nrm2/PR
+    return IPR
+
+IPRs = np.zeros((len(Ks)))
+
+for k in range(len(Ks)):
+    y1 = O1[k]
+    O1_fourier = fft(y1[t_sat:])
+    xf = fftfreq(M, t_sat)[:M//2]
+    yf = 2.0/M * np.abs(O1_fourier[0:M//2])
+    IPRs[k] = IPR_normed(yf)
+
+np.savez(f'IPR_O1_from_t_sat{t_sat}_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_time_lim{time_lim}_basis_size{N}'+operators+'.npz',IPRs=IPRs)
+
+y_IPR = normalize(IPRs)
+
+plt.figure(figsize=(16,8))
+plt.title(f'IPR O1. A={opA}, B={opB}')
+plt.plot(Ks, y_IPR, '-b', lw=1.5)
+# plt.plot(Kx, r_normed, '-r', lw=1.5, label='r')
+# plt.plot(Ks, 1-r_one, '-g', lw=1.5, label='1-r paridad +1')
+plt.xlabel(r'$K$')
+plt.ylabel('IPR')
+# plt.ylim(0,1)
+# plt.xlim(-0.2,max(times)+0.2)
+plt.grid(True)
+# plt.legend(loc = 'best')
+plt.savefig(f'IPR_O1_from_t_sat{t_sat}_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_time_lim{time_lim}_basis_size{N}'+operators+'.png', dpi=80)
+
