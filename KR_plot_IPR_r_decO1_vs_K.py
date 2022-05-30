@@ -46,15 +46,17 @@ time_lim = 21
 archives = np.load(f'pendientes_4pC_FFT_with_Tinf_state_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_basis_size2048_time_lim{time_lim}'+operators+'.npz')
 pendientes_O1 = archives['pendientes_O1']
 
-
+t_sat = 500
 time_lim = int(6e3)
 archives = np.load(f'IPR_O1_from_t_sat{t_sat}_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_time_lim{time_lim}_basis_size{N}'+operators+'.npz')
 IPRs = archives['IPRs']
 
+N = 2**3
+Nstates = int(2*N)#N/2)
 Kpaso = 0.5
 Ks = np.arange(0,10.1,Kpaso)#
 
-archives = np.load(f'IPR_vs_Ks_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_N{N}_coherent_basis_grid{Nstates}x{Nstates}.npz')
+archives = np.load(f'IPR_Husimi_vs_Ks_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_N{N}_coherent_basis_grid{Nstates}x{Nstates}_numpy.npz')
 IPR_means = archives['IPR_means']
 
 y_nacho = normalize(IPR_nacho)
@@ -63,6 +65,7 @@ r_normed = normalize(rs)
 y_mean = normalize(IPR_means)
 pendientes_y = normalize(pendientes_O1)
 
+N = 2**7
 Kpaso = 0.05
 Ks = np.arange(0,10.1,Kpaso)#
 
