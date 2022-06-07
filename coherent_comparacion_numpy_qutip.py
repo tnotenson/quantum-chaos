@@ -10,6 +10,8 @@ Prueba qutip numpy
 import matplotlib.pyplot as plt
 import numpy as np
 from numba import jit
+from scipy.fft import fft, ifft, fftfreq
+from scipy.signal import blackman
 from qutip import *
 from time import time 
 from tqdm import tqdm # customisable progressbar decorator for iterators
@@ -137,13 +139,13 @@ def normalize(array):# normalizo valores entre 0 y 1
 @jit
 def coherent_state_Augusto(N, q0, p0, lim_suma=4):#, cuasiq=0
     state = np.zeros((N), dtype=np.complex_) # creo el estado como array de ceros 
-    cte = np.power(2/N,4) # cte de norm. 1
-    coefq = np.exp(np.pi/(2*N)*(q0**2+p0**2)) # cte de norm. 2
+    # cte = np.power(2/N,4) # cte de norm. 1
+    # coefq = np.exp(np.pi/(2*N)*(q0**2+p0**2)) # cte de norm. 2
     for q in range(N): #calculo el coeficiente para cada q
         coefsnu = np.zeros((2*lim_suma+1), dtype=np.complex_) # creo un array de ceros
         for i,nu in enumerate(np.arange(-lim_suma,lim_suma+1)):
             # print('q',q,', nu',nu)
-            coefnu = np.exp(-np.pi/N*(nu*N-(q0-q))**2-1j*2*np.pi/N*p0*(nu*N-q+q0/2)) 
+            coefnu = np.exp(-np.pi/N*(nu*N-q0+q)**2-1j*2*np.pi/N*p0*(nu*N+q0/2-q)) 
             coefsnu[i] = coefnu # lo voy llenando con los términos de la sumatoria
         coef = np.sum(coefsnu) # hago la sumatoria
         state[q] = coef # agrego el coeficiente para el q fijo
@@ -166,7 +168,7 @@ def base_coherente_Augusto(N, Nstates):
             p0=p*paso
             # estado coherente
             # print(i, 'de ',Nstates**2)
-            b = Qobj(coherent_state_Augusto(N, q0, p0, lim_suma=4))
+            b = coherent_state_Augusto(N, q0, p0, lim_suma=2)
             # print(np.linalg.norm(b))
             base[:,i] = np.array(b).flatten()
     return base
@@ -217,8 +219,101 @@ def mtrx_element(M,a,b):
     # print(adag.shape, M.shape, bp.shape)
     res = adag@M@bp
     return res[0,0]
+
+def plot_psi2(n,q0,p0):
+    psi = coherent_state_Augusto(n, q0, p0, lim_suma=4)
+    M = len(psi)
+    psi2 = np.abs(psi)**2
+    # w = blackman(n)
+    fftpsi = fft(psi)#*w)
+    fftpsi2 = 1/M*(np.abs(fftpsi))**2
+
+    # parte1 = fftpsi2[:M//2]
+    # parte2 = fftpsi2[M//2:]
+    # fftpsi2 = np.concatenate((parte2,parte1))
+
+    qs = np.arange(n); 
+    # fftps = fftfreq(n)
+    # x1 = fftps[:M//2]
+    # x2 = fftps[M//2:]
+    # fftps = np.concatenate((x2,x1))
+
+    fig, ax = plt.subplots(2, 1, figsize=(16,10))
+
+    # plt.subplots_adjust(top = 0.99, bottom=0.01, hspace=1.5, wspace=0.4)
+
+    ax[0].plot(qs, psi2, 'r.-', label=r'$|\psi(q)|^2$')
+    # ax[i].set_xlabel(r'$q\,\,p$')
+    ax[1].plot(qs, fftpsi2, 'b.-', label=r'$|\psi(p)|^2$')
+    for i in range(len(ax)):
+        if i==0:
+            xlab=r'$q$'
+            ylab = r'$|\psi(q)|^2$'
+        if i==1:
+            xlab=r'$p$'
+            ylab = r'$|\psi(p)|^2$'
+        ax[i].set_xlabel(xlab)
+        ax[i].set_ylabel(ylab)
+        ax[i].grid(True)
+
+    fig.tight_layout() 
+
+    return 
+#%% plot in position and momentum space
+
+n=2**7
+
+q0 = 3
+p0 = -10 
+
+plot_psi2(n, q0, p0)
+
 #%%
-nqubits = 6;
+n = 2**6
+
+index = -1#int(n/2)
+q0 = index
+p0 = index
+
+psi = coherent_state_Augusto(n, q0, p0, lim_suma=4)
+M = len(psi)
+psi2 = np.abs(psi)**2
+# w = blackman(n)
+fftpsi = fft(psi)#*w)
+fftpsi2 = 2/M*(np.abs(fftpsi))**2
+
+# parte1 = fftpsi2[:M//2]
+# parte2 = fftpsi2[M//2:]
+# fftpsi2 = np.concatenate((parte2,parte1))
+
+qs = np.arange(n); ps = np.arange(n)
+fftps = fftfreq(n)
+x1 = fftps[:M//2]
+x2 = fftps[M//2:]
+fftps = np.concatenate((x2,x1))
+
+fig, ax = plt.subplots(2, 1, figsize=(16,10))
+
+# plt.subplots_adjust(top = 0.99, bottom=0.01, hspace=1.5, wspace=0.4)
+
+ax[0].plot(qs, psi2, 'r.-', label=r'$|\psi(q)|^2$')
+# ax[i].set_xlabel(r'$q\,\,p$')
+ax[1].plot(fftps, fftpsi2, 'b.-', label=r'$|\psi(p)|^2$')
+for i in range(len(ax)):
+    if i==0:
+        xlab=r'$q$'
+        ylab = r'$|\psi(q)|^2$'
+    if i==1:
+        xlab=r'$p$'
+        ylab = r'$|\psi(p)|^2$'
+    ax[i].set_xlabel(xlab)
+    ax[i].set_ylabel(ylab)
+    ax[i].grid(True)
+
+fig.tight_layout() 
+
+#%%
+nqubits = 7;
 N = 2**nqubits#11
 # hbar = 1/(2*np.pi*N)
 Nstates= np.int32(2*N)#N/2)  #% numero de estados coherentes de la base
@@ -275,9 +370,9 @@ for q in tqdm(range(Nstates), desc='q loop'):
         # expando los estados a y b en la base de estados coherentes
         # overlap entre el estado a y el coherente centrado en q0 y p0
         # est_a[i] = a.overlap(b)
-        est_an[i] = ovrlp(an,bn)
+        est_an[i] = ovrlp(bn,an)
         # est_c[i] = a.overlap(b)
-        est_cn[i] = ovrlp(cn,bn)
+        est_cn[i] = ovrlp(bn,cn)
         
         # sumo el proyector asociado a ese estado coherente
         # ident1 = b.proj()
@@ -319,7 +414,7 @@ print('over3/nor1')
 print(over3n/nor1n)
 
 #%%
-Kpaso = .5
+Kpaso = 1
 Ks = np.arange(0,10.1,Kpaso)#
 
 norma = np.sqrt(nor1n)
