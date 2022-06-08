@@ -214,31 +214,33 @@ def state2kirk(phi,ndim,tip=0,tiq=0):
     # work = np.zeros(n, dtype=np.complex_)
     
     work = phi*np.exp(-cunit*tip*np.arange(n))
-    
+        
     M = len(work)
-    workf = fft(work)
-    workf = 2.0/M * workf#[:M//2]
+    workf = 1/M*fft(work)
+    # workf = workf#*2.0/M#[:M//2]
     
     print('work',len(workf))
     print('phi',len(phi))
     rho = np.zeros((ndim, ndim), dtype=np.complex_)
     for k in range(n):
        for i in range(n):
+           # print('k,i',k,i)
            rho[k,i]=workf[k]*np.conj(phi[i])*np.exp(cunit*i*(k+tip))
            # acá me queda la duda si tengo que usar workf (fft) o work
     # !rho[k,i]=<k|phi><phi|i>/<k|i>
+    print('termina hus')
     return rho
 
 @jit
-def kirk2hus(n,rho,ndim,nr,nhus):
+def kirk2hus(n,rho,ndim,nhus):
 # ! assumes workfft has been initialized by prop_init
-# ! computes the Husimi distribution from thr Kirkwood array
+# ! computes the Husimi distribution from the Kirkwood array
 # ! on input rho is the kirkwood matrix matrix  <k|rho|n>/<k/n> (unchanged)
-# ! on output hus is the real array <p,q|rho/p,q> discretized
-# !   on a phase space grid (n*nr)times(n*nr)
+# ! on output hus is the real array <p,q|rho|p,q> discretized
+# ! on a phase space grid (n*nr) x (n*nr)
 # ! nr (even) is chosen by the program to provide nice smooth plots
 # ! and passed on to the plotting program
-# !   for N>50 nr=2 is appropriate
+# ! for N>50 nr=2 is appropriate
 # ! when rho is a pure state this is the Husimi distribution
 
     hus = np.zeros((nhus,nhus), dtype=np.complex_)
@@ -263,25 +265,25 @@ def kirk2hus(n,rho,ndim,nr,nhus):
             hus[ik,ip] = rho[ik,ip]
 
     M = len(hus)
-    husf = ifft2(hus)
-    husf = 2/M*husf
+    husf = 1/M*ifft2(hus)
+    # husf = husf#*2/M
       
 # !  hus now contains the N*N generating function
-
+    hus = np.zeros((n*nr, n*nr), dtype=np.complex_)
     for iq in range(n*nr):
         for ip in range(n*nr):
-            husf[iq,ip]=husf[iq%n,ip%n]
-
+            hus[iq,ip]=husf[iq%n,ip%n]
+    print('\n\npaso el primer loop de n*nr')
     for iq in range(n*nr):
         for ip in range(n*nr):
             exp1 = np.exp(-0.5*np.pi/n*((nnr2-iq)**2+(nnr2-ip)**2))
             exp2 = np.exp(0.5*aim*(((ip-nnr2)*(iq-nnr2))%(2*n)))
-            husf[iq,ip]=husf[iq,ip]*exp1*exp2
+            hus[iq,ip]=hus[iq,ip]*exp1*exp2
 
 # !  hus now contains the p,q fourier components of the husimi function
-    M = len(husf)
-    husfif = fft2(husf)
-    husfif = 2/M*husfif
+    M = len(hus)
+    husfif = 1/M*fft2(hus)
+    # husfif = husfif#*2/M
     for ip in range(n*nr):
         for iq in range(n*nr):
             husfif[ip,iq]=husfif[ip,iq]*(-1)**(ip+iq)/(n*n*nr)    #!normalization
@@ -292,14 +294,16 @@ def kirk2hus(n,rho,ndim,nr,nhus):
 
 @jit
 def IPR_Husimi(state, tol = 0.0001):
+    print('entra')
     n = len(state)
     nhus = int(2*n)
+    print('llego')
     rho = state2kirk(state, n)
-    hus = kirk2hus(n, rho, n, n, nhus)
+    hus = kirk2hus(n, rho, n, nhus)
     aux = IPR(hus)
     return aux
 #%%
-nqubits = 4;
+nqubits = 7;
 N = 2**nqubits#11
 # hbar = 1/(2*np.pi*N)
 Nstates= np.int32(2*N)#N/2)  #% numero de estados coherentes de la base
@@ -359,7 +363,7 @@ for q in tqdm(range(Nstates), desc='q loop'):
 nor1n=mtrx_element(Idenn,an,an)
 
 #%%
-Kpaso = .5
+Kpaso = .05
 Ks = np.arange(0,10.1,Kpaso)#
 
 norma = np.sqrt(nor1n)
@@ -397,13 +401,14 @@ for k,K in tqdm(enumerate(Ks), desc='K loop'):
                 
         # aux = IPR_Husimi(est_vec/norma)
         print('\nvec',vec.shape)
+        # print('\n\n\n\n\n')
         aux = IPR_Husimi(vec)
         IPRs[j] = aux
        
     IPR_means[k] = np.mean(IPRs)
 np.savez(f'IPR_Husimi_vs_Ks_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_N{N}_coherent_basis_grid{Nstates}x{Nstates}_numpy.npz', IPR_means = IPR_means, rs = rs)#integrable_K0
 #%%
-y_IPR = normalize(IPRmeans)
+y_IPR = normalize(IPR_means)
 
 plt.figure(figsize=(16,8))
 plt.title(f'IPR rutinas Nacho')

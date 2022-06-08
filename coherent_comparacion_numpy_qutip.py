@@ -243,8 +243,10 @@ def plot_psi2(n,q0,p0):
     # plt.subplots_adjust(top = 0.99, bottom=0.01, hspace=1.5, wspace=0.4)
 
     ax[0].plot(qs, psi2, 'r.-', label=r'$|\psi(q)|^2$')
+    ax[0].vlines(q0, min(psi2), max(psi2), alpha=0.5, color='red')
     # ax[i].set_xlabel(r'$q\,\,p$')
-    ax[1].plot(qs, fftpsi2, 'b.-', label=r'$|\psi(p)|^2$')
+    ax[1].plot((qs%n), fftpsi2, 'b.-', label=r'$|\psi(p)|^2$')
+    ax[1].vlines((p0%n), min(psi2), max(psi2), alpha=0.5, color='blue')
     for i in range(len(ax)):
         if i==0:
             xlab=r'$q$'
@@ -257,63 +259,19 @@ def plot_psi2(n,q0,p0):
         ax[i].grid(True)
 
     fig.tight_layout() 
-
+    plt.savefig(f'coherent_state_n{n}_q0{q0}_p0{p0}.png', dpi=100)
     return 
 #%% plot in position and momentum space
 
-n=2**7
+n=2**8
 
-q0 = 3
-p0 = -10 
+q0 = int(n/2)
+p0 = -5 
 
 plot_psi2(n, q0, p0)
 
 #%%
-n = 2**6
-
-index = -1#int(n/2)
-q0 = index
-p0 = index
-
-psi = coherent_state_Augusto(n, q0, p0, lim_suma=4)
-M = len(psi)
-psi2 = np.abs(psi)**2
-# w = blackman(n)
-fftpsi = fft(psi)#*w)
-fftpsi2 = 2/M*(np.abs(fftpsi))**2
-
-# parte1 = fftpsi2[:M//2]
-# parte2 = fftpsi2[M//2:]
-# fftpsi2 = np.concatenate((parte2,parte1))
-
-qs = np.arange(n); ps = np.arange(n)
-fftps = fftfreq(n)
-x1 = fftps[:M//2]
-x2 = fftps[M//2:]
-fftps = np.concatenate((x2,x1))
-
-fig, ax = plt.subplots(2, 1, figsize=(16,10))
-
-# plt.subplots_adjust(top = 0.99, bottom=0.01, hspace=1.5, wspace=0.4)
-
-ax[0].plot(qs, psi2, 'r.-', label=r'$|\psi(q)|^2$')
-# ax[i].set_xlabel(r'$q\,\,p$')
-ax[1].plot(fftps, fftpsi2, 'b.-', label=r'$|\psi(p)|^2$')
-for i in range(len(ax)):
-    if i==0:
-        xlab=r'$q$'
-        ylab = r'$|\psi(q)|^2$'
-    if i==1:
-        xlab=r'$p$'
-        ylab = r'$|\psi(p)|^2$'
-    ax[i].set_xlabel(xlab)
-    ax[i].set_ylabel(ylab)
-    ax[i].grid(True)
-
-fig.tight_layout() 
-
-#%%
-nqubits = 7;
+nqubits = 8;
 N = 2**nqubits#11
 # hbar = 1/(2*np.pi*N)
 Nstates= np.int32(2*N)#N/2)  #% numero de estados coherentes de la base

@@ -23,7 +23,7 @@ def normalize(array):
     return (array - min(array))/(max(array)-min(array))
 #%%
 N = 2**7
-Nstates = int(N/2)
+Nstates = int(2*N)
 hbar = 1/(2*np.pi*N)
 # q0 = 0
 # p0 = 2/10
@@ -51,12 +51,12 @@ time_lim = int(6e3)
 archives = np.load(f'IPR_O1_from_t_sat{t_sat}_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_time_lim{time_lim}_basis_size{N}'+operators+'.npz')
 IPRs = archives['IPRs']
 
-N = 2**3
-Nstates = int(2*N)#N/2)
+# N = 2**6
+# Nstates = int(2*N)#N/2)
 Kpaso = 0.5
 Ks = np.arange(0,10.1,Kpaso)#
 
-archives = np.load(f'IPR_Husimi_vs_Ks_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_N{N}_coherent_basis_grid{Nstates}x{Nstates}_numpy.npz')
+archives = np.load(f'IPR_vs_Ks_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_N{N}_coherent_basis_grid{Nstates}x{Nstates}_numpy.npz')
 IPR_means = archives['IPR_means']
 
 y_nacho = normalize(IPR_nacho)
@@ -76,7 +76,7 @@ plt.plot(Ks, y_fourier, 'g.-', label='IPR O1')
 plt.plot(Ks, r_normed, 'k.-', label='r')
 plt.plot(Ks, pendientes_y, 'b.-', label=r'$\alpha_{O1}$')
 
-Kpaso = 0.5
+Kpaso = .5
 Ks = np.arange(0,10.1,Kpaso)#
 
 plt.plot(Ks, y_mean, 'r.-', label=r'$\langle IPR \rangle_{coherentes}$')
