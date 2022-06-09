@@ -14,6 +14,7 @@ from time import time
 from tqdm import tqdm # customisable progressbar decorator for iterators
 from cmath import phase
 from scipy.stats import skew
+import seaborn as sns; sns.set_theme()
 plt.rcParams.update({
 "text.usetex": True,
 "font.family": "sans-serif",
@@ -122,6 +123,7 @@ def diagU_r(U_sub):
 #         # print('norma expansion', norm) # chequeo las normas
 #         return coefs#/norm # devuelvo el estado expandido en la base
 
+@jit
 def IPR(state, tol = 0.0001):
     if (np.linalg.norm(state)-1) > tol:
         print(np.linalg.norm(state))
@@ -134,7 +136,7 @@ def normalize(array):# normalizo valores entre 0 y 1
     return (array - min(array))/(max(array)-min(array)) # devuelvo la variable normalizada
 
 @jit
-def coherent_state_Augusto(N, q0, p0, lim_suma=4):#, cuasiq=0
+def coherent_state_Augusto(N, q0, p0, lim_suma=4, norma=True):#, cuasiq=0
     state = np.zeros((N), dtype=np.complex_) # creo el estado como array de ceros 
     cte = np.power(2/N,4) # cte de norm. 1
     coefq = np.exp(np.pi/(2*N)*(q0**2+p0**2)) # cte de norm. 2
@@ -146,10 +148,13 @@ def coherent_state_Augusto(N, q0, p0, lim_suma=4):#, cuasiq=0
             coefsnu[i] = coefnu # lo voy llenando con los términos de la sumatoria
         coef = np.sum(coefsnu) # hago la sumatoria
         state[q] = coef # agrego el coeficiente para el q fijo
-    nrm = np.linalg.norm(state) # calculo la norma
-    # inrm = cte*coefq
-    # print('norm state', nrm) # chequeo la norma del estado
-    return state/nrm # devuelvo el estado normalizado como numpy darray
+    if norma:
+        nrm = np.linalg.norm(state) # calculo la norma
+        # inrm = cte*coefq
+        # print('norm state', nrm) # chequeo la norma del estado
+        return state/nrm # devuelvo el estado normalizado como numpy darray
+    else:
+        return state
 
 @jit
 def base_coherente_Augusto(N, Nstates):
@@ -196,7 +201,22 @@ def mtrx_element(M,a,b):
     res = adag@M@bp
     return res[0,0]
 
+def coherent_coef(q, N, q0, p0, lim_suma=4):
+    coefsnu = np.zeros((2*lim_suma+1), dtype=np.complex_) # creo un array de ceros
+    for i,nu in enumerate(np.arange(-lim_suma,lim_suma+1)):
+        # print('q',q,', nu',nu)
+        coefnu = np.exp(-np.pi/N*(nu*N-(q0-q))**2-1j*2*np.pi/N*p0*(nu*N-q+q0/2)) 
+        coefsnu[i] = coefnu # lo voy llenando con los términos de la sumatoria
+    coef = np.sum(coefsnu) # hago la sumatoria
+    return coef
 
+def coherent_Fcoef(p, N, q0, p0, lim_suma=4):
+    b = coherent_state_Augusto(N, q0, p0, lim_suma=4, norma=False)
+    M = len(b)
+    bf = fft(b)*1/np.sqrt(M)
+    return bf[p]
+    
+    
 def state2kirk(phi,ndim,tip=0,tiq=0):
     
 # !
@@ -206,21 +226,21 @@ def state2kirk(phi,ndim,tip=0,tiq=0):
 # ! on exit rho(k,n) containd the Kirkwood rep. rho(k,n)=<k|rho|n>/<k|n>
 # ! normalization is such that sum_{k,n}=1
     n = len(phi)
-    print('n',n)
+    # print('n',n)
     # assert n<15000, 'n too big' 
       
     cunit=2*1j*np.pi/n
     
     # work = np.zeros(n, dtype=np.complex_)
-    
+
     work = phi*np.exp(-cunit*tip*np.arange(n))
         
     M = len(work)
-    workf = 1/M*fft(work)
+    workf = fft(work)*1/np.sqrt(M)
     # workf = workf#*2.0/M#[:M//2]
     
-    print('work',len(workf))
-    print('phi',len(phi))
+    # print('work',len(workf))
+    # print('phi',len(phi))
     rho = np.zeros((ndim, ndim), dtype=np.complex_)
     for k in range(n):
        for i in range(n):
@@ -228,11 +248,11 @@ def state2kirk(phi,ndim,tip=0,tiq=0):
            rho[k,i]=workf[k]*np.conj(phi[i])*np.exp(cunit*i*(k+tip))
            # acá me queda la duda si tengo que usar workf (fft) o work
     # !rho[k,i]=<k|phi><phi|i>/<k|i>
-    print('termina hus')
+    # print('termina hus')
     return rho
 
-@jit
-def kirk2hus(n,rho,ndim,nhus):
+# @jit
+def kirk2hus(n,rho):
 # ! assumes workfft has been initialized by prop_init
 # ! computes the Husimi distribution from the Kirkwood array
 # ! on input rho is the kirkwood matrix matrix  <k|rho|n>/<k/n> (unchanged)
@@ -243,7 +263,7 @@ def kirk2hus(n,rho,ndim,nhus):
 # ! for N>50 nr=2 is appropriate
 # ! when rho is a pure state this is the Husimi distribution
 
-    hus = np.zeros((nhus,nhus), dtype=np.complex_)
+    hus = np.zeros((n,n), dtype=np.complex_)
     aim = 1j*2*np.pi/n    #!2*i*pi/n
       
 # !      if(n>ndim+1)stop 'dimension of map too large in kirk2hus'
@@ -254,10 +274,10 @@ def kirk2hus(n,rho,ndim,nhus):
     elif(n<10): nr=10
     elif(n<6): nr=16
     elif(n<4): nr=20
-    elif(n*nr>nhus):
-        print('nhus=',nhus)
-        print('n*nr=',n*nr)
-    # assert n*nr<nhus, ' dimension of hus too large in kirk2hus'
+    # elif(n*nr>nhus):
+        # print('nhus=',nhus)
+        # print('n*nr=',n*nr)
+    # assert n*nr<nhus, f'dimension of hus too large in kirk2hus n*nr={n*nr} >= nhus={nhus}'
     
     nnr2=n*nr/2
     for ik in range(n):
@@ -265,7 +285,7 @@ def kirk2hus(n,rho,ndim,nhus):
             hus[ik,ip] = rho[ik,ip]
 
     M = len(hus)
-    husf = 1/M*ifft2(hus)
+    husf = ifft2(hus)*M
     # husf = husf#*2/M
       
 # !  hus now contains the N*N generating function
@@ -273,7 +293,7 @@ def kirk2hus(n,rho,ndim,nhus):
     for iq in range(n*nr):
         for ip in range(n*nr):
             hus[iq,ip]=husf[iq%n,ip%n]
-    print('\n\npaso el primer loop de n*nr')
+    # print('\n\npaso el primer loop de n*nr')
     for iq in range(n*nr):
         for ip in range(n*nr):
             exp1 = np.exp(-0.5*np.pi/n*((nnr2-iq)**2+(nnr2-ip)**2))
@@ -282,91 +302,143 @@ def kirk2hus(n,rho,ndim,nhus):
 
 # !  hus now contains the p,q fourier components of the husimi function
     M = len(hus)
-    husfif = 1/M*fft2(hus)
+    husfif = fft2(hus)*1/M
     # husfif = husfif#*2/M
     for ip in range(n*nr):
         for iq in range(n*nr):
             husfif[ip,iq]=husfif[ip,iq]*(-1)**(ip+iq)/(n*n*nr)    #!normalization
-    print('algo')
+    # print('algo')
 # !  hus is the husimi on a grid refined by nr
 # ! notice that first index is momentum and second is coordinate!
     return husfif
 
-@jit
-def IPR_Husimi(state, tol = 0.0001):
-    print('entra')
+def kirk2hus_Tomi(n, rho):
+    nr=2
+    if(n<80): nr=4
+    elif(n<40): nr=6
+    elif(n<20): nr=8
+    elif(n<10): nr=10
+    elif(n<6): nr=16
+    elif(n<4): nr=20
+      
+     
+    hus = np.zeros((n*nr, n*nr), dtype=np.complex_)
+    for iq in range(n*nr):
+        for ip in range(n*nr):
+            b = coherent_state_Augusto(N, q0, p0, lim_suma=4, norma=False)
+            M = len(b)
+            bf = fft(b)*1/np.sqrt(M)      
+            
+            hus[iq,ip]=mtrx_element(rho,bf,b)
+   
+    return hus
+
+def plot_Husimi(state):
     n = len(state)
-    nhus = int(2*n)
-    print('llego')
+    print(n)
+    # nhus = int(5*n)
+    # print('llego')
     rho = state2kirk(state, n)
-    hus = kirk2hus(n, rho, n, nhus)
-    aux = IPR(hus)
+    hus = kirk2hus(n, rho)
+    hus /= np.sum(np.abs(hus))
+    hus = np.abs(hus)#**2
+    ax = sns.heatmap(hus)
+    return 
+
+def flattenear(vec):
+    return np.array(vec).flatten()
+
+# @jit
+def IPR_Husimi(state, tol = 0.0001):
+    # print('entra')
+    n = len(state)
+    # nhus = int(5*n)
+    # print('llego')
+    rho = state2kirk(state, n)
+    hus = kirk2hus(n, rho)
+    hus /= np.sum(np.abs(hus))
+    aux = IPR(np.abs(hus), tol)
     return aux
 #%%
-nqubits = 7;
+nqubits = 6;
 N = 2**nqubits#11
 # hbar = 1/(2*np.pi*N)
-Nstates= np.int32(2*N)#N/2)  #% numero de estados coherentes de la base
-paso = N/Nstates
+nr=2
+if(N<80): nr=4
+elif(N<40): nr=6
+elif(N<20): nr=8
+elif(N<10): nr=10
+elif(N<6): nr=16
+elif(N<4): nr=20
+  
+Nstates= np.int32(nr*N)#N/2)  #% numero de estados coherentes de la base
 
-# armo la base coherente
-start_time = time()
-base = base_coherente_Augusto(N,Nstates)
-# base = base_integrable(N)
-print('Duration: ', time()-start_time)
+# # armo la base coherente
+# start_time = time()
+# base = base_coherente_Augusto(N,Nstates)
+# # base = base_integrable(N)
+# print('Duration: ', time()-start_time)
 
-# seed
-np.random.seed(0)
+# # seed
+# np.random.seed(0)
 
-# defino 2 estados complejos random
-a=np.random.random(N)+np.random.random(N)*1j
-norm=np.linalg.norm(a)
-an = a/norm
-# a = Qobj(a/norm)
+# # defino 2 estados complejos random
+# a=np.random.random(N)+np.random.random(N)*1j
+# norm=np.linalg.norm(a)
+# an = a/norm
+# # a = Qobj(a/norm)
 
-# defino la identidad
-Idenn = np.zeros([N,N], dtype=np.complex_)
-# Iden = Qobj(Idenn)
+# # defino la identidad
+# Idenn = np.zeros([N,N], dtype=np.complex_)
+# # Iden = Qobj(Idenn)
 
-# est_a = np.zeros(Nstates**2, dtype=np.complex_)
-est_an = np.zeros(Nstates**2, dtype=np.complex_)
+# # est_a = np.zeros(Nstates**2, dtype=np.complex_)
+# est_an = np.zeros(Nstates**2, dtype=np.complex_)
 
-for q in tqdm(range(Nstates), desc='q loop'):
-    for p in range(Nstates):
-        # indice
-        i=q+p*Nstates
-        #centros
+# for q in tqdm(range(Nstates), desc='q loop'):
+#     for p in range(Nstates):
+#         # indice
+#         i=q+p*Nstates
+#         #centros
 
-        q0=q*paso
-        p0=p*paso
-        # estado coherente
-        # print(i, 'de ',Nstates**2)
-        bn = base[:,i]
-        # b = Qobj(bn)
+#         q0=q*paso
+#         p0=p*paso
+#         # estado coherente
+#         # print(i, 'de ',Nstates**2)
+#         bn = base[:,i]
+#         # b = Qobj(bn)
                 
-        # expando los estados a y b en la base de estados coherentes
-        # overlap entre el estado a y el coherente centrado en q0 y p0
-        # est_a[i] = a.overlap(b)
-        est_an[i] = ovrlp(an,bn)
+#         # expando los estados a y b en la base de estados coherentes
+#         # overlap entre el estado a y el coherente centrado en q0 y p0
+#         # est_a[i] = a.overlap(b)
+#         est_an[i] = ovrlp(an,bn)
 
         
-        # sumo el proyector asociado a ese estado coherente
-        # ident1 = b.proj()
-        ident1n = projectr(bn)
-        Idenn = Idenn+ident1n
-        # Iden = Iden+ident1
+#         # sumo el proyector asociado a ese estado coherente
+#         # ident1 = b.proj()
+#         ident1n = projectr(bn)
+#         Idenn = Idenn+ident1n
+#         # Iden = Iden+ident1
 
 
-# calculo las normas y el overlap tomando los elementos de matriz de la...
-# ... identidad calculada a partir de los proyectores de la base coherente
-# nor1=Iden.matrix_element(a,a)
-nor1n=mtrx_element(Idenn,an,an)
+# # calculo las normas y el overlap tomando los elementos de matriz de la...
+# # ... identidad calculada a partir de los proyectores de la base coherente
+# # nor1=Iden.matrix_element(a,a)
+# nor1n=mtrx_element(Idenn,an,an)
+#%%
+plt.figure(figsize=(10,10))
+plot_Husimi_Tomi(state)
+plt.savefig('heatmap_Husimi_autoestado_Tomi.png', dpi=80)
+
+plt.figure(figsize=(10,10))
+plot_Husimi(state)
+plt.savefig('heatmap_Husimi_autoestado_Nacho.png', dpi=80)
 
 #%%
-Kpaso = .05
+Kpaso = 1
 Ks = np.arange(0,10.1,Kpaso)#
 
-norma = np.sqrt(nor1n)
+# norma = np.sqrt(nor1n)
 IPR_means = np.zeros((len(Ks)))
 rs = np.zeros((len(Ks)))
 
@@ -400,7 +472,7 @@ for k,K in tqdm(enumerate(Ks), desc='K loop'):
         #         est_vec[i] = ovrlp(b,vec)#mtrx_element(Idenn,b,vec)#
                 
         # aux = IPR_Husimi(est_vec/norma)
-        print('\nvec',vec.shape)
+        # print('\nvec',vec.shape)
         # print('\n\n\n\n\n')
         aux = IPR_Husimi(vec)
         IPRs[j] = aux

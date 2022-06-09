@@ -261,6 +261,31 @@ def plot_psi2(n,q0,p0):
     fig.tight_layout() 
     plt.savefig(f'coherent_state_n{n}_q0{q0}_p0{p0}.png', dpi=100)
     return 
+
+def plot_Husimi_Tomi(state):
+    statedag = np.conj(state)
+    n = len(state)
+    
+    nr=2
+    if(n<80): nr=4
+    elif(n<40): nr=6
+    elif(n<20): nr=8
+    elif(n<10): nr=10
+    elif(n<6): nr=16
+    elif(n<4): nr=20
+      
+    Nstates= np.int32(nr*n)
+    nnr2 = int(nr*n/2)
+    
+    hus = np.zeros((Nstates,Nstates), dtype=np.complex_)
+    
+    for iq in range(Nstates):
+        for ip in range(Nstates):
+            b = coherent_state_Augusto(n, iq/nr, ip/nr)
+            hus[ip, iq] = np.inner(statedag, b) # falta |.|^2
+    hus = np.abs(hus)**2
+    ax = sns.heatmap(hus)
+    return hus
 #%% plot in position and momentum space
 
 n=2**8
@@ -271,10 +296,18 @@ p0 = -5
 plot_psi2(n, q0, p0)
 
 #%%
-nqubits = 8;
+nqubits = 6;
 N = 2**nqubits#11
 # hbar = 1/(2*np.pi*N)
-Nstates= np.int32(2*N)#N/2)  #% numero de estados coherentes de la base
+nr=2
+if(n<80): nr=4
+elif(n<40): nr=6
+elif(n<20): nr=8
+elif(n<10): nr=10
+elif(n<6): nr=16
+elif(n<4): nr=20
+  
+Nstates= np.int32(nr*N)#N/2)  #% numero de estados coherentes de la base
 paso = N/Nstates
 
 # armo la base coherente
