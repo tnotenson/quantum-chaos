@@ -129,7 +129,7 @@ def IPR(state, tol = 0.0001):
         print(np.linalg.norm(state))
     # state = state.full()
     pi = np.abs(state) # calculo probabilidades
-    IPR = 1/np.sum(pi**2) # calculo el IPR
+    IPR = np.sum(pi**2)/np.sum(pi)**2 # calculo el IPR
     return IPR # devuelvo el IPR
 
 def normalize(array):# normalizo valores entre 0 y 1
@@ -340,7 +340,7 @@ def plot_Husimi(state):
     # print('llego')
     rho = state2kirk(state, n)
     hus = kirk2hus(n, rho)
-    hus /= np.sum(np.abs(hus))
+    # hus /= np.sum(np.abs(hus))
     hus = np.abs(hus)#**2
     print('shape', hus.shape)
     ax = sns.heatmap(hus)
@@ -370,8 +370,8 @@ def IPR_Husimi(state, tol = 0.0001):
 #%%
 
 
-nqubits = 7;
-N = 2**nqubits#11
+nqubits = 6;
+N = 200#2**nqubits#11
 # hbar = 1/(2*np.pi*N)
 nr=2
 if(N<4): nr=20
@@ -455,7 +455,7 @@ Nstates= np.int32(nr*N)#N/2)  #% numero de estados coherentes de la base
 # plt.savefig('heatmap_Husimi_autoestado_Nacho_hecho_en_python.png', dpi=80)
 
 #%%
-Kpaso = 1
+Kpaso = 0.05
 Ks = np.arange(0,10.1,Kpaso)#
 
 # norma = np.sqrt(nor1n)
@@ -471,7 +471,7 @@ for k,K in tqdm(enumerate(Ks), desc='K loop'):
     # rs[k] = r
     
     for j in tqdm(range(evec.shape[1]), desc='vec loop'):
-        vec = np.array(evec[:,j]).flatten()
+        vec = flattenear(evec[:,j])
         # est_vec = np.zeros(Nstates**2, dtype=np.complex_)
         # for q in range(Nstates):
         #     for p in range(Nstates):
@@ -498,9 +498,10 @@ for k,K in tqdm(enumerate(Ks), desc='K loop'):
         IPRs[j] = aux
        
     IPR_means[k] = np.mean(IPRs)
-np.savez(f'IPR_Husimi_vs_Ks_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_N{N}_coherent_basis_grid{Nstates}x{Nstates}_numpy.npz', IPR_means = IPR_means, rs = rs)#integrable_K0
+    
+np.savez(f'IPR_Husimi_vs_Ks_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_N{N}_coherent_basis_grid{Nstates}x{Nstates}_numpy.npz', IPR_means = 1/IPR_means, rs = rs)#integrable_K0
 #%%
-y_IPR = normalize(IPR_means)
+y_IPR = normalize(1/IPR_means)
 
 plt.figure(figsize=(16,8))
 plt.title(f'IPR rutinas Nacho')

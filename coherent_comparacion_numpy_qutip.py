@@ -130,7 +130,7 @@ def IPR(state, tol = 0.0001):
         print(np.linalg.norm(state))
     # state = state.full()
     pi = np.abs(state)**2 # calculo probabilidades
-    IPR = np.sum(pi)**2/np.sum(pi**2) # calculo el IPR
+    IPR = np.sum(pi**2)/np.sum(pi)**2 # calculo el IPR
     return IPR # devuelvo el IPR
 
 def normalize(array):# normalizo valores entre 0 y 1
@@ -445,4 +445,4 @@ for k,K in tqdm(enumerate(Ks), desc='K loop'):
         IPRs[j] = aux
        
     IPR_means[k] = np.mean(IPRs)
-np.savez(f'IPR_vs_Ks_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_N{N}_coherent_basis_grid{Nstates}x{Nstates}_numpy.npz', IPR_means = IPR_means, rs = rs)#integrable_K0
+np.savez(f'IPR_vs_Ks_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_N{N}_coherent_basis_grid{Nstates}x{Nstates}_numpy.npz', IPR_means = 1/IPR_means, rs = rs)#integrable_K0
