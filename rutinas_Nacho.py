@@ -128,8 +128,8 @@ def IPR(state, tol = 0.0001):
     if (np.linalg.norm(state)-1) > tol:
         print(np.linalg.norm(state))
     # state = state.full()
-    pi = np.abs(state)**2 # calculo probabilidades
-    IPR = np.sum(pi)**2/np.sum(pi**2) # calculo el IPR
+    pi = np.abs(state) # calculo probabilidades
+    IPR = 1/np.sum(pi**2) # calculo el IPR
     return IPR # devuelvo el IPR
 
 def normalize(array):# normalizo valores entre 0 y 1
@@ -268,12 +268,12 @@ def kirk2hus(n,rho):
       
 # !      if(n>ndim+1)stop 'dimension of map too large in kirk2hus'
     nr=2
-    if(n<80): nr=4
-    elif(n<40): nr=6
-    elif(n<20): nr=8
-    elif(n<10): nr=10
+    if(n<4): nr=20
     elif(n<6): nr=16
-    elif(n<4): nr=20
+    elif(n<10): nr=10
+    elif(n<20): nr=8
+    elif(n<40): nr=6
+    elif(n<80): nr=4
     # elif(n*nr>nhus):
         # print('nhus=',nhus)
         # print('n*nr=',n*nr)
@@ -314,12 +314,12 @@ def kirk2hus(n,rho):
 
 def kirk2hus_Tomi(n, rho):
     nr=2
-    if(n<80): nr=4
-    elif(n<40): nr=6
-    elif(n<20): nr=8
-    elif(n<10): nr=10
+    if(n<4): nr=20
     elif(n<6): nr=16
-    elif(n<4): nr=20
+    elif(n<10): nr=10
+    elif(n<20): nr=8
+    elif(n<40): nr=6
+    elif(n<80): nr=4
       
      
     hus = np.zeros((n*nr, n*nr), dtype=np.complex_)
@@ -342,6 +342,7 @@ def plot_Husimi(state):
     hus = kirk2hus(n, rho)
     hus /= np.sum(np.abs(hus))
     hus = np.abs(hus)#**2
+    print('shape', hus.shape)
     ax = sns.heatmap(hus)
     return 
 
@@ -359,17 +360,27 @@ def IPR_Husimi(state, tol = 0.0001):
     hus /= np.sum(np.abs(hus))
     aux = IPR(np.abs(hus), tol)
     return aux
+
+#%% cargo husimi de Fortran (Nacho) y la ploteo
+# husimi_fortran = np.loadtxt('/home/tomasnotenson/Escritorio/Caos_y_control_cuantico/Repo github/Nacho/husimi.dat')
+
+# plt.figure(figsize=(10,10))
+# sns.heatmap(husimi_fortran)
+# plt.savefig('heatmap_Husimi_autoestado_Nacho_hecho_en_Fortran.png', dpi=80)
 #%%
-nqubits = 6;
+
+
+nqubits = 7;
 N = 2**nqubits#11
 # hbar = 1/(2*np.pi*N)
 nr=2
-if(N<80): nr=4
-elif(N<40): nr=6
-elif(N<20): nr=8
-elif(N<10): nr=10
+if(N<4): nr=20
 elif(N<6): nr=16
-elif(N<4): nr=20
+elif(N<10): nr=10
+elif(N<20): nr=8
+elif(N<40): nr=6
+elif(N<80): nr=4
+
   
 Nstates= np.int32(nr*N)#N/2)  #% numero de estados coherentes de la base
 
@@ -425,14 +436,23 @@ Nstates= np.int32(nr*N)#N/2)  #% numero de estados coherentes de la base
 # # ... identidad calculada a partir de los proyectores de la base coherente
 # # nor1=Iden.matrix_element(a,a)
 # nor1n=mtrx_element(Idenn,an,an)
-#%%
-plt.figure(figsize=(10,10))
-plot_Husimi_Tomi(state)
-plt.savefig('heatmap_Husimi_autoestado_Tomi.png', dpi=80)
+# %%
 
-plt.figure(figsize=(10,10))
-plot_Husimi(state)
-plt.savefig('heatmap_Husimi_autoestado_Nacho.png', dpi=80)
+# K = 0.2533*4*(np.pi**2)
+# U = UU(K, N)
+# e,evec = np.linalg.eig(U)
+
+# index = 43
+
+# state = flattenear(evec[:,index])
+
+# # plt.figure(figsize=(10,10))
+# # plot_Husimi_Tomi(state)
+# # plt.savefig('heatmap_Husimi_autoestado_Tomi.png', dpi=80)
+
+# plt.figure(figsize=(10,10))
+# plot_Husimi(state)
+# plt.savefig('heatmap_Husimi_autoestado_Nacho_hecho_en_python.png', dpi=80)
 
 #%%
 Kpaso = 1

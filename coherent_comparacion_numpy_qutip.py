@@ -288,24 +288,24 @@ def plot_Husimi_Tomi(state):
     return hus
 #%% plot in position and momentum space
 
-n=2**8
+# n=2**8
 
-q0 = int(n/2)
-p0 = -5 
+# q0 = int(n/2)
+# p0 = -5 
 
-plot_psi2(n, q0, p0)
+# plot_psi2(n, q0, p0)
 
 #%%
-nqubits = 6;
-N = 2**nqubits#11
+nqubits = 8;
+N = 200#2**nqubits#11
 # hbar = 1/(2*np.pi*N)
 nr=2
-if(n<80): nr=4
-elif(n<40): nr=6
-elif(n<20): nr=8
-elif(n<10): nr=10
-elif(n<6): nr=16
-elif(n<4): nr=20
+if(N<80): nr=4
+elif(N<40): nr=6
+elif(N<20): nr=8
+elif(N<10): nr=10
+elif(N<6): nr=16
+elif(N<4): nr=20
   
 Nstates= np.int32(nr*N)#N/2)  #% numero de estados coherentes de la base
 paso = N/Nstates
@@ -405,7 +405,7 @@ print('over3/nor1')
 print(over3n/nor1n)
 
 #%%
-Kpaso = 1
+Kpaso = 2
 Ks = np.arange(0,10.1,Kpaso)#
 
 norma = np.sqrt(nor1n)
