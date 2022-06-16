@@ -382,7 +382,8 @@ def TFIM4pC_and_2pC_chaos_parameter(N, J, x, z, time_lim, evolution='U'):
     print(f"\n Separate parity eigenstates --- {time() - sym_time} seconds ---" )
     
     # r_normed_H = diagH_r(H_sub)
-    # r_normed_U = diagU_r(U.full())
+
+
     r_normed_mone = diagU_r(U_mone)
     r_normed_one = diagU_r(U_one)
     
@@ -406,11 +407,14 @@ def TFIM4pC_and_2pC_chaos_parameter(N, J, x, z, time_lim, evolution='U'):
 
 
 #%% define operators
+
+
 N = 12
 J = 1
 
 time_lim = 31
-# Calcular los correladores para un valor de theta y de B
+#%% Calcular los correladores para un valor de theta y de B
+
 # tomo los valores de Prosen
 hx = 1.4
 #hz = 0.4
@@ -421,13 +425,16 @@ hx = 1.4
 #    theta = np.arctan(hx/hz)
 #print('B=',B,'\ntheta=',theta)
 
-hzs = np.arange(0.3,0.4,0.2)
+
+hzs = np.arange(0,1.5,0.2)
 
 for hz in hzs:
         
     [[O1_mone, Cs_mone], [O1_one, Cs_one], r_normed_mone, r_normed_one] = TFIM4pC_and_2pC_chaos_parameter(N, J, hx, hz, time_lim, evolution='U')
     
-    # dimension = 2**N
+
+    dimension = 2**N
+
     
     O1s = np.abs(O1_mone+O1_one)#/dimension#/N
     Cs = np.abs(Cs_mone+Cs_one)#/dimension#/N
@@ -440,6 +447,7 @@ for hz in hzs:
     opB = 'X'
     operators = '_A'+opA+'_B'+opB
     flag = 'Var_KI_with_Tinf_state'
+
     np.savez(flag+f'_time_lim{time_lim}_J{J:.2f}_hx{hx:.2f}_hz{hz:.2f}_basis_size{N}'+operators+'suma_subparidad.npz', Cs=Cs, O1s=O1s, r_normed_mone=r_normed_mone, r_normed_one=r_normed_one)#%% Calcular los correladores para varios valores de theta y uno de B
 #r_normed_mone=r_normed_mone, r_normed_one=r_normed_one
 #%% FALTA EDITAR ESTO
@@ -510,3 +518,6 @@ plt.grid(True)
 plt.legend(loc = 'best')
 plt.savefig('pendientes_y_r_vs_hz_'+plott+'_'+flag+f'_time_lim{time_lim}_J{J:.2f}_hx{hx:.2f}_hzs_basis_size{N}'+operators+'suma_subparidad.png', dpi=80)
     
+
+    np.savez(flag+f'_time_lim{time_lim}_J{J:.2f}_hx{hx:.2f}_hz{hz:.2f}_basis_size{N}'+operators+'suma_subparidad.npz', Cs=Cs, O1s=O1s, r_normed_U=r_normed_U)#%% Calcular los correladores para varios valores de theta y uno de B
+
