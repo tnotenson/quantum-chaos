@@ -382,6 +382,8 @@ def TFIM4pC_and_2pC_chaos_parameter(N, J, x, z, time_lim, evolution='U'):
     print(f"\n Separate parity eigenstates --- {time() - sym_time} seconds ---" )
     
     # r_normed_H = diagH_r(H_sub)
+
+
     r_normed_mone = diagU_r(U_mone)
     r_normed_one = diagU_r(U_one)
     
@@ -405,11 +407,14 @@ def TFIM4pC_and_2pC_chaos_parameter(N, J, x, z, time_lim, evolution='U'):
 
 
 #%% define operators
+
+
 N = 12
 J = 1
 
 time_lim = 31
 #%% Calcular los correladores para un valor de theta y de B
+
 # tomo los valores de Prosen
 hx = 1.4
 #hz = 0.4
@@ -420,13 +425,16 @@ hx = 1.4
 #    theta = np.arctan(hx/hz)
 #print('B=',B,'\ntheta=',theta)
 
+
 hzs = np.arange(0,1.5,0.2)
 
 for hz in hzs:
         
     [[O1_mone, Cs_mone], [O1_one, Cs_one], r_normed_mone, r_normed_one] = TFIM4pC_and_2pC_chaos_parameter(N, J, hx, hz, time_lim, evolution='U')
     
+
     dimension = 2**N
+
     
     O1s = np.abs(O1_mone+O1_one)#/dimension#/N
     Cs = np.abs(Cs_mone+Cs_one)#/dimension#/N
@@ -439,4 +447,77 @@ for hz in hzs:
     opB = 'X'
     operators = '_A'+opA+'_B'+opB
     flag = 'Var_KI_with_Tinf_state'
+
+    np.savez(flag+f'_time_lim{time_lim}_J{J:.2f}_hx{hx:.2f}_hz{hz:.2f}_basis_size{N}'+operators+'suma_subparidad.npz', Cs=Cs, O1s=O1s, r_normed_mone=r_normed_mone, r_normed_one=r_normed_one)#%% Calcular los correladores para varios valores de theta y uno de B
+#r_normed_mone=r_normed_mone, r_normed_one=r_normed_one
+#%% FALTA EDITAR ESTO
+N = 12
+J = 1
+hx = 1.4
+
+plott = 'O1'#'C2'#'Var'#
+
+time_lim = 31
+times = np.arange(0,time_lim)
+hzs = np.arange(0,1.5,0.1)
+
+pendientes, r_mone_list, r_one_list = np.zeros((len(hzs))), np.zeros((len(hzs))), np.zeros((len(hzs)))
+ 
+
+for k, hz in enumerate(hzs):
+    name = flag+f'_time_lim{time_lim}_J{J:.2f}_hx{hx:.2f}_hz{hz:.2f}_basis_size{N}'+operators+'suma_subparidad.npz'
+    archives = np.load(name)
+    
+    Cs=archives['Cs']
+    O1s=archives['O1s']
+    r_normed_mone=archives['r_normed_mone']
+    r_normed_one=archives['r_normed_one']
+    
+    r_mone_list[k] = r_normed_mone
+    r_one_list[k] = r_normed_one
+    
+    tmin = 0
+    tmax = 16
+    xs = times[tmin:tmax]
+    
+    if plott == 'Var':
+        Var = (O1s - Cs**2)#/dimension#/N
+        y_Var = np.log10(Var)
+        y = y_Var[tmin:tmax]
+    elif plott == 'O1':
+        y_O1 = np.log10(O1s)
+        y = y_O1[tmin:tmax]
+    elif plott == 'C2':
+        y_Cs = np.log10(Cs**2)
+        y = y_Cs[tmin:tmax]
+
+    coef = np.polyfit(xs,y,1)
+    poly1d_fn = np.poly1d(coef) #[b,m]
+    m, b = poly1d_fn
+    
+    pendientes[k] = np.abs(m)
+
+pendientes_normed = (pendientes-min(pendientes))/(max(pendientes)-min(pendientes))
+
+r_mone_list = np.nan_to_num(r_mone_list)
+r_one_list = np.nan_to_num(r_one_list)
+
+r_mone = (r_mone_list - min(r_mone_list))/(max(r_mone_list)-min(r_mone_list))
+r_one = (r_one_list - min(r_one_list))/(max(r_one_list)-min(r_one_list))
+
+plt.figure(figsize=(16,8))
+plt.title(f'A={opA}, B={opB}.')
+plt.plot(hzs, pendientes_normed, '-b', lw=1.5, label='pendiente')
+plt.plot(hzs, 1-r_mone, '-r', lw=1.5, label='1-r paridad -1')
+plt.plot(hzs, 1-r_one, '-g', lw=1.5, label='1-r paridad +1')
+plt.ylabel(r'$\alpha$')
+plt.xlabel(r'$h_z$')
+# plt.ylim(-4,1.1)
+# plt.xlim(-0.2,max(times)+0.2)
+plt.grid(True)
+plt.legend(loc = 'best')
+plt.savefig('pendientes_y_r_vs_hz_'+plott+'_'+flag+f'_time_lim{time_lim}_J{J:.2f}_hx{hx:.2f}_hzs_basis_size{N}'+operators+'suma_subparidad.png', dpi=80)
+    
+
     np.savez(flag+f'_time_lim{time_lim}_J{J:.2f}_hx{hx:.2f}_hz{hz:.2f}_basis_size{N}'+operators+'suma_subparidad.npz', Cs=Cs, O1s=O1s, r_normed_U=r_normed_U)#%% Calcular los correladores para varios valores de theta y uno de B
+
