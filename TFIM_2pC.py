@@ -53,10 +53,13 @@ def TFIM(N, hx, hz, J):
     for n in range(N):
         H += hx[n] * sx_list[n]
         H += hz[n] * sz_list[n]
+        
     # interaction terms
+    
     #PBC
     for n in range(N):
         H += J[n] * sz_list[n] * sz_list[(n+1)%N]
+        
     #OBC
     # for n in range(N-1):
     #     H += J[n] * sz_list[n] * sz_list[n+1]
@@ -71,8 +74,6 @@ def fH0(N, hx, hz, sx_list, sz_list):
     # energy splitting terms
     for n in range(N):
         H += hz[n] * sz_list[n]
-        
-    for n in range(N):
         H += hx[n] * sx_list[n]
    
     return H
@@ -83,10 +84,13 @@ def fH1(N, J, sz_list):
     H = 0
     
     # interaction terms
+    
     #PBC
     for n in range(N):
         H += J[n] * sz_list[n] * sz_list[(n+1)%N]
+        
     #OBC
+    
     # for n in range(N-1):
     #     H += J[n] * sz_list[n] * sz_list[n+1]
     return H
@@ -115,26 +119,7 @@ def fU(N, J, hx, hz):
     
     U0 = propagator(H0,1).full()
     U1 = propagator(H1,1).full()
-#     ##    # define the floquet operator
-#     e1, evec1 = H1.eigenstates()
-#     e0, evec0 = H0.eigenstates()
-  
-#     C1 = np.column_stack([vec.data.toarray() for vec in evec1])
-#     C1inv = np.matrix(C1).H
-    
-#     C0 = np.column_stack([vec.data.toarray() for vec in evec0])
-#     C0inv = np.matrix(C0).H
-    
-#     U1_diag = np.diag(np.exp(-1j*e1))
-#     U0_diag = np.diag(np.exp(-1j*e0))
-# #    
-# ##    print(C1inv.shape)
-# ##    print(C1.shape)
-# ##    print(U1_diag)
-# #    
-#     U1 = C1@U1_diag@C1inv
-#     U0 = C0@U0_diag@C0inv
-##    
+
     U = U1@U0
     
     return Qobj(U)
@@ -175,6 +160,7 @@ def Sj(N, j='z'):
             s_list.append(tensor(op_list))
         return sum(s_list)
 
+# construct Pauli matrix in direction j=x,y,z for site i=0,...,N-1
 def sigmai_j(N,i,j='z'):
 
     op_list = [si for m in range(N)]
@@ -187,26 +173,26 @@ def sigmai_j(N,i,j='z'):
         op_list[i] = sy
     return tensor(op_list)
 
-def can_bas(N,i):
-    e = np.zeros(N)
-    e[i] = 1.0
-    return e
 
+# Time evolution step (Heisenberg picture)
 @jit(nopython=True, parallel=True, fastmath = True)
 def Evolucion_numpy(B_t, U, Udag):
-    res = Udag@B_t@U#U@B_t@Udag#
+    res = Udag@B_t@U# U@B_t@Udag # evolucion al revés
     return res
 
+# 2 operator correlator dim * <B(t) A> 
 @jit(nopython=True, parallel=True, fastmath = True)
 def twopC_numpy_Tinf(A, B_t):
     C = np.trace(B_t@A)
     return C
 
+# operator average dim * <A>**2 
 @jit(nopython=True, parallel=True, fastmath = True)
-def A_average(A, dims):
+def A_average_sqd(A, dims=1):
     res = np.trace(A)**2/dims
     return res
 
+# squared commutator average <|[B(t), A]|**2>
 @jit(nopython=True, parallel=True, fastmath = True)
 def C_t_commutator_numpy_Tinf(A, B_t, N):
     com = B_t@A - A@B_t
@@ -226,6 +212,7 @@ def r_chaometer(ener,plotadjusted):
         ra = (ra -0.3863) / (-0.3863+0.5307)
     return ra
 
+# level spacing histogram
 def histo_level_spacing(ener):
     spac = np.diff(ener)
     print('espaciado',spac)
@@ -234,6 +221,7 @@ def histo_level_spacing(ener):
     plt.xlabel('level spacing')
     return 
 
+# r chaometer for hamiltonian 
 # @jit(nopython=True)#, parallel=True, fastmath = True)
 def diagH_r(H_sub):
     ener = np.linalg.eigvals(H_sub)
@@ -242,6 +230,7 @@ def diagH_r(H_sub):
     r_normed = r_chaometer(ener, plotadjusted=True) 
     return r_normed
 
+# r chaometer for evolution operator (Floquet)
 # @jit(nopython=True)#, parallel=True, fastmath = True)
 def diagU_r(U_sub):
     ener = np.linalg.eigvals(U_sub)
@@ -250,6 +239,59 @@ def diagU_r(U_sub):
     # histo_level_spacing(fases)
     r_normed = r_chaometer(fases, plotadjusted=True) 
     return r_normed
+
+def r_thetas(N, B, J, theta, x, z, dt, pot):
+     
+    hx = np.sin(theta)*x*B*np.ones(N)
+    hz = np.cos(theta)*z*B*np.ones(N)
+    Jz = J*np.ones(N)
+    
+    start_time = time()
+    # let's try it
+    
+    ######## H evolution ##########
+    # H = TFIM_Nico(N, hx, hz, Jz)
+    H = TFIM(N, hx, hz, Jz)
+    ######## U evolution ##########
+    U = fU(N, Jz, hx, hz, dt)**pot
+    
+    # separate symmetries
+    start_time = time()
+
+    # separate symmetries
+    
+    P = parity(N)
+    ep, epvec = P.eigenstates()
+    
+    n_mone, n_one = np.unique(ep, return_counts = True)[1]
+    
+    C = np.column_stack([vec.data.toarray() for vec in epvec])
+    Cinv = np.linalg.inv(C)
+    
+    ######## H evolution ##########
+    
+    H_par = H.transform(Cinv)
+    # print(H_par)
+    
+    ######## U evolution ##########
+    U_par = U.transform(Cinv)
+    # print(U_par)
+    
+    ######## H evolution ##########
+    H_sub = H_par.extract_states(np.arange(n_mone,n_one+n_mone))
+    # print(H_sub)
+    
+    ######## U evolution ##########
+    U_sub = U_par.extract_states(np.arange(n_mone,n_one+n_mone)).data.toarray()
+    U_sub = np.matrix(U_sub)
+    
+    # #########################################################################
+    r_normed_H = diagH_r(H_sub)
+    r_normed_U = diagU_r(U_sub)
+    
+    # print(f"\n r-chaometer theta = {theta} --- {time() - start_time} seconds ---" )
+    print(f"\n r-chaometer theta = {theta} --- {time() - start_time} seconds ---" )
+    return [r_normed_H, r_normed_U]
 
 #%%
 
@@ -265,8 +307,8 @@ def C2p_time(time_lim, A, B, U, Udag, Cs, N):
             
         # dim = A.shape[0]
         
-        # compute 2-point correlator with qutip
-        C_t = twopC_numpy_Tinf(A, B_t)# - A_average(A, dim)
+        # compute 2-point correlator with numpy
+        C_t = twopC_numpy_Tinf(A, B_t)# - A_average_sqd(A, dim)
         # C_t = C_t/dim/N
         
         # print(C_t)
@@ -281,7 +323,7 @@ def Evolution2p_H_KI_Tinf(H, time_lim, N, A, B):
     Cs = np.zeros((time_lim), dtype=np.complex_)#, dtype=np.complex_)#[]
         
     # define time evolution operator
-    U = (-1j*H).expm().data.toarray()
+    U = propagator(H,1).full()
     U = np.matrix(U, dtype=np.complex_)
     Udag = U.H
     # print(U)
@@ -326,7 +368,8 @@ def TFIM_2pC_chaos_parameter(N, J, x, z, time_lim, evolution='U'):
         ######## U evolution ##########
         U = fU(N, Jz, hx, hz)
         # U = np.matrix(U.data.toarray(), dtype=np.complex_)
-        
+    
+    # choose operators A and B
     A = Sj(N, j='x')#/N
     B = A
     # A = A.data.toarray()
@@ -344,17 +387,25 @@ def TFIM_2pC_chaos_parameter(N, J, x, z, time_lim, evolution='U'):
     # separate symmetries
     sym_time = time()
     
+    # define and diagonalize parity operator 
     P = parity(N)
     ep, epvec = P.eigenstates()
     
-    print(ep)
+    # print parity eigenvalues (+-1)
+    print('Parity eigenvalues:\n',ep)
     
+    # number of +1 or -1 values in ep
     n_mone, n_one = np.unique(ep, return_counts = True)[1]
     
+    # +1 and -1 parity subspaces sizes
     print('tamaños de subespacios de par.', n_mone,'+',n_one,'=', n_mone+n_one)
+    
+    # change to parity basis
+    # change-of-basis matrix
     C = np.column_stack([vec.data.toarray() for vec in epvec])
     Cinv = np.linalg.inv(C)
     
+    # transform hamiltonian/floquet operator
     if evolution=='H':
         ######## H evolution ##########
         
@@ -366,13 +417,12 @@ def TFIM_2pC_chaos_parameter(N, J, x, z, time_lim, evolution='U'):
         U_par = U.transform(Cinv)
         # # hinton(U_par)
   
-    
+    # transform operators
     A_par = A.transform(Cinv)
     B_par = B.transform(Cinv)
     # hinton(A_par)
     
-    
-        
+    # divide in parity subspace
     if evolution=='H':
        
         # # ######## H evolution ##########
@@ -397,12 +447,14 @@ def TFIM_2pC_chaos_parameter(N, J, x, z, time_lim, evolution='U'):
     # A_sub = np.matrix(A_sub, dtype=np.complex_)
     print(f"\n Separate parity eigenstates --- {time() - sym_time} seconds ---" )
     
+    # compute r chaometer 
     # r_normed_H = diagH_r(H_sub)
     # r_normed_U = diagU_r(U_sub)
     
     evol_time = time()
     #
     
+    # compute 2 operator correlator
     if evolution=='H':
                 
         Cs_mone, _ = Evolution2p_H_KI_Tinf(H_mone, time_lim, N, A_mone, B_mone)
@@ -425,7 +477,6 @@ J = 1
 
 time_lim = 51
 times = np.arange(0,time_lim)
-points = 50
 
 # tomo los valores de Prosen
 hx = 1.4
@@ -453,14 +504,15 @@ Cs = np.abs((Cs_mone + Cs_one)/2**N/N)
 # flag = 'Evol_alreves_2p_KI_with_Tinf_state_'
 # opi = str(int(N/2))
 # opj = str(int(N/2))
-opA = 'X'#+opi
+opA = 'X'#'X_'+opi
 opB = opA#'Z_'+opj
 paridad = 'par'
 operators = '_A'+opA+'_B'+opB
-BC = 'PBC'
+BC = 'PBC'#'OBC'
 flag = 'propagator_2p_KI_with_Tinf_state_'
-# np.savez('2pC_'+flag+f'_time_lim{time_lim}_J{J:.2f}_hx{hx:.2f}_hz{hz:.2f}_basis_size{N}'+operators+'.npz', Cs=Cs)
+np.savez('2pC_'+flag+f'_time_lim{time_lim}_J{J:.2f}_hx{hx:.2f}_hz{hz:.2f}_basis_size{N}'+operators+'.npz', Cs=Cs)
 #%% Comparación de contribuciones Cs por paridad
+
 # Cs_mone = Cs_mone/2**N/N
 # Cs_one = Cs_one/2**N/N
 
@@ -517,15 +569,13 @@ flag = 'propagator_2p_KI_with_Tinf_state_'
 # plt.savefig(flag+BC+f'_time_lim{time_lim}_J{J:.2f}_hx{hx:.2f}_hz{hz:.2f}_theta{theta:.2f}_basis_size{N}'+paridad+operators+'_suma_de_contr_subesp_paridad.png', dpi=80)
 
 
-#%%
-
-
+#%% Compare values with Tomaz Prosen paper
 
 plt.figure(figsize=(16,8))
 
 if hx == hz:
+    
     y_C2_U = np.log10(Cs)
-
     yfit = np.log(Cs)
     
     tmin = 0
@@ -568,6 +618,7 @@ plt.plot(times,y_C2_U, 'o-g', ms=1, lw=2, label='$L=$'+f'{N}', alpha=0.8)
 # plt.plot(xs, poly1d_fn_p(xs), '--r', lw=1)
 
 
+# check t=0 correlator value 
 print(Cs[0])
 
 plt.xlabel(r'$t$')
@@ -577,7 +628,7 @@ plt.grid()
 plt.legend(loc='best')
 
 plt.savefig(flag+BC+f'_time_lim{time_lim}_J{J:.2f}_hx{hx:.2f}_hz{hz:.2f}_theta{theta:.2f}_basis_size{N}'+paridad+operators+'_suma_de_contr_subesp_paridad.png', dpi=80)
-    # %%
+#%% another check
 if hz == 0.4:
     
     yplot = np.log10(np.abs(Cs-DL))#np.abs(Cs-DM)#
@@ -609,7 +660,7 @@ if hz == 0.4:
     plt.grid()
     plt.legend(loc='best')
     plt.savefig('inset_1b_'+flag+BC+f'_time_lim{time_lim}_J{J:.2f}_hx{hx:.2f}_hz{hz:.2f}_theta{theta:.2f}_basis_size{N}'+paridad+operators+'_suma_de_contr_subesp_paridad.png', dpi=80)
-    #%%
+#%%
 # plt.figure(figsize=(16,8))
 
 # if hx == hz:
