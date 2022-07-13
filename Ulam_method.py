@@ -178,9 +178,9 @@ def Ulam_one_trayectory(N,Nx,paso,Nc,K,mapa):
         
         
 #%%
-K = 7
+K = 12
 
-Neff = 2**7
+Neff = 2**6
 cx = 1
 Nx = int(cx*Neff)
 N = Nx**2
@@ -210,26 +210,28 @@ plt.xlim(-1.1,1.1)
 plt.ylim(-1.1,1.1)
 plt.grid(True)
 #%% plot eigenvalues for each N
-Ns = 2**np.arange(4,7)
+Ns = 2**np.arange(4,8)
 Ncs = [int(1e3), int(1e4), int(1e5)]
 Nc = Ncs[1]
 
+markers = ['o','*','s','^']
+
 plt.figure(figsize=(10,10))
 
-for Neff in Ns:
+for i, Neff in enumerate(Ns):
     flag = f'Ulam_approximation_mapa{mapa}_Sij_eigenvals_N{Neff}_grilla{cx}N_K{K}_Nc{Nc}'
     archives = np.load(flag+'.npz')
     e = archives['arr_0']
-    plt.plot(e.real, e.imag, '*', ms=10, alpha=0.8, label=f'N={Neff}')
+    plt.plot(e.real, e.imag, markers[i], ms=10, alpha=0.6, label=f'N={Neff}')
 plt.xlabel(r'$\Re(\lambda)$')
 plt.ylabel(r'$\Im(\lambda)$')
-plt.xlim(0.1,1)
-plt.ylim(-0.025,0.025)
-# plt.xlim(-1.1,1.1)
-# plt.ylim(-1.1,1.1)
+# plt.xlim(0.1,1)
+# plt.ylim(-0.025,0.025)
+plt.xlim(-1.1,1.1)
+plt.ylim(-1.1,1.1)
 plt.grid(True)
 plt.legend(loc='best')
-plt.savefig('zoom'+flag+'.png', dpi=300)
+plt.savefig(flag+'.png', dpi=300)
 #%%
 # Copyright Dominique Delande
 # Provided "as is" without any warranty
