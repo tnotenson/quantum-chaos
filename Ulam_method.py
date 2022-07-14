@@ -178,7 +178,7 @@ def Ulam_one_trayectory(N,Nx,paso,Nc,K,mapa):
         
         
 #%%
-K = 12
+K = 7
 
 Neff = 2**6
 cx = 1
@@ -198,19 +198,39 @@ if (mapa=='normal' or mapa=='absortion'):
 elif mapa=='dissipation':
     S = Ulam_one_trayectory(N, Nx, paso, Nc, K, mapa)
     
-#%% diagonalize operator
-e, evec = np.linalg.eig(S)
-flag = f'Ulam_approximation_mapa{mapa}_Sij_eigenvals_N{Neff}_grilla{cx}N_K{K}_Nc{Nc}'
+# diagonalize operator
+e, evec = np.linalg.eig(S.T)
+flag = f'Transpose_Ulam_approximation_mapa{mapa}_Sij_eigenvals_N{Neff}_grilla{cx}N_K{K}_Nc{Nc}'
 np.savez(flag+'.npz', e)
 #%% plot eigenvalues
-plt.plot(e.real, e.imag, 'r*', ms=2, alpha=0.7)
-plt.xlabel(r'$\Re(\lambda)$')
-plt.ylabel(r'$\Im(\lambda)$')
-plt.xlim(-1.1,1.1)
-plt.ylim(-1.1,1.1)
-plt.grid(True)
+# plt.figure()
+# plt.plot(e.real, e.imag, 'r*', ms=2, alpha=0.7, label='Tomi')
+# plt.xlabel(r'$\Re(\lambda)$')
+# plt.ylabel(r'$\Im(\lambda)$')
+# # plt.xlim(0.49,1.1)
+# # plt.ylim(-0.1,0.1)
+# plt.grid(True)
+
+# x = w.real
+# # extract imaginary part using numpy
+# y = w.imag
+  
+# ############################################################################
+# # fig1 = plt.figure(4)
+# plt.scatter(x, y, s=5, alpha=0.8, label='Diego')
+
+# theta = np.linspace(0, 2*np.pi, 100)
+   
+# r= 1
+
+# x = r*np.cos(theta)
+# y = r*np.sin(theta)
+   
+# plt.plot(x,y,color='b', lw=1)
+# plt.legend(loc='best')
+# plt.savefig(f'Comparacion_zoom_Ulam_Diego_Neff{Neff}_Nx{Nx}_K{K}.png', dpi=100)
 #%% plot eigenvalues for each N
-Ns = 2**np.arange(4,8)
+Ns = 2**np.arange(6,8)
 Ncs = [int(1e3), int(1e4), int(1e5)]
 Nc = Ncs[1]
 
@@ -222,16 +242,17 @@ for i, Neff in enumerate(Ns):
     flag = f'Ulam_approximation_mapa{mapa}_Sij_eigenvals_N{Neff}_grilla{cx}N_K{K}_Nc{Nc}'
     archives = np.load(flag+'.npz')
     e = archives['arr_0']
+    print(f'N={Neff} ', e.real[1])
     plt.plot(e.real, e.imag, markers[i], ms=10, alpha=0.6, label=f'N={Neff}')
 plt.xlabel(r'$\Re(\lambda)$')
 plt.ylabel(r'$\Im(\lambda)$')
-# plt.xlim(0.1,1)
-# plt.ylim(-0.025,0.025)
-plt.xlim(-1.1,1.1)
-plt.ylim(-1.1,1.1)
+plt.xlim(0.5,1)
+plt.ylim(-0.025,0.025)
+# plt.xlim(-1.1,1.1)
+# plt.ylim(-1.1,1.1)
 plt.grid(True)
 plt.legend(loc='best')
-plt.savefig(flag+'.png', dpi=300)
+plt.savefig('zoom_'+flag+'.png', dpi=300)
 #%%
 # Copyright Dominique Delande
 # Provided "as is" without any warranty
