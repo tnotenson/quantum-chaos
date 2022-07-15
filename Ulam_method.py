@@ -14,6 +14,7 @@ from numba import jit
 # importing "cmath" for complex number operations
 from cmath import phase
 from random import random
+import seaborn as sns
 
 plt.rcParams.update({
 "text.usetex": True,
@@ -41,6 +42,13 @@ def standard_map_dissipation(q,p,K,eta=0.3):
     
     assert (-4*np.pi<=pf and pf<=4*np.pi), 'no está en el intervalo [-4pi,4pi]'
     
+    return qf, pf
+
+
+# probar con K = 0.01, 0.02
+def perturbed_cat_map(q,p,K):
+    pf = (p + q - dpi*K*np.sin(dpi*q))%1
+    qf = (q + pf + dpi*K*np.sin(dpi*pf))%1
     return qf, pf
 
 def CI(qj,pj,paso):
@@ -73,6 +81,12 @@ def CI_and_evolution(qj,pj,paso,K,mapa='normal'):
 
 def evolution(q,p,K,mapa='normal'):
     # evoluciono un paso 
+    if mapa=='cat':
+        qf, pf = perturbed_cat_map(q,p,K)
+        
+        nqi = qf//paso
+        npi = pf//paso
+        
     if mapa=='normal':
         qf, pf = standard_map(q,p,K)
         
@@ -100,7 +114,10 @@ def evolution(q,p,K,mapa='normal'):
     return qf, pf, nqi, npi
 
 def qp_from_j(j,Nx,paso,mapa='normal'):
-    if mapa=='normal':
+    if mapa=='cat':
+        qj = (j%Nx)*paso
+        pj = ((j//Nx)%Nx)*paso
+    elif mapa=='normal':
         qj = (j%Nx)*paso
         pj = ((j//Nx)%Nx)*paso
     elif mapa=='absortion':
@@ -120,7 +137,7 @@ def Ulam(N,Nx,paso,Nc,K,mapa):
     for j in tqdm(range(N), desc='j loop'):
         # celda j fija
         # límites inf. de la celda j fija
-        qj, pj = qp_from_j(j, Nx, paso)
+        qj, pj = qp_from_j(j, Nx, paso, mapa)
         # repito Nc veces
         for nj in range(Nc):
             # tomo una CI random dentro de la celda j 
@@ -180,12 +197,12 @@ def Ulam_one_trayectory(N,Nx,paso,Nc,K,mapa):
 #%%
 K = 7
 
-Neff = 2**6
+Neff = 140#2**6
 cx = 1
 Nx = int(cx*Neff)
 N = Nx**2
 
-mapa = 'normal'#'absortion' #
+mapa = 'normal'#'absortion'#'dissipation'#'cat'#
 eta = 0.3
 a = 2
 
@@ -193,23 +210,23 @@ paso = 1/Nx
 
 Nc = int(1e4)
 
-if (mapa=='normal' or mapa=='absortion'):
+if (mapa=='normal' or mapa=='absortion' or mapa=='cat'):
     S = Ulam(N, Nx, paso, Nc, K, mapa)
 elif mapa=='dissipation':
     S = Ulam_one_trayectory(N, Nx, paso, Nc, K, mapa)
     
 # diagonalize operator
-e, evec = np.linalg.eig(S.T)
-flag = f'Transpose_Ulam_approximation_mapa{mapa}_Sij_eigenvals_N{Neff}_grilla{cx}N_K{K}_Nc{Nc}'
+e, evec = np.linalg.eig(S)
+flag = f'Ulam_approximation_mapa{mapa}_Sij_eigenvals_N{Neff}_grilla{cx}N_K{K}_Nc{Nc}'
 np.savez(flag+'.npz', e)
 #%% plot eigenvalues
-# plt.figure()
-# plt.plot(e.real, e.imag, 'r*', ms=2, alpha=0.7, label='Tomi')
-# plt.xlabel(r'$\Re(\lambda)$')
-# plt.ylabel(r'$\Im(\lambda)$')
-# # plt.xlim(0.49,1.1)
-# # plt.ylim(-0.1,0.1)
-# plt.grid(True)
+plt.figure()
+plt.plot(e.real, e.imag, 'r*', ms=2, alpha=0.7, label='Tomi')
+plt.xlabel(r'$\Re(\lambda)$')
+plt.ylabel(r'$\Im(\lambda)$')
+# plt.xlim(0.49,1.1)
+# plt.ylim(-0.1,0.1)
+plt.grid(True)
 
 # x = w.real
 # # extract imaginary part using numpy
@@ -219,18 +236,18 @@ np.savez(flag+'.npz', e)
 # # fig1 = plt.figure(4)
 # plt.scatter(x, y, s=5, alpha=0.8, label='Diego')
 
-# theta = np.linspace(0, 2*np.pi, 100)
+theta = np.linspace(0, 2*np.pi, 100)
    
-# r= 1
+r= 1
 
-# x = r*np.cos(theta)
-# y = r*np.sin(theta)
+x = r*np.cos(theta)
+y = r*np.sin(theta)
    
-# plt.plot(x,y,color='b', lw=1)
+plt.plot(x,y,color='b', lw=1)
 # plt.legend(loc='best')
 # plt.savefig(f'Comparacion_zoom_Ulam_Diego_Neff{Neff}_Nx{Nx}_K{K}.png', dpi=100)
 #%% plot eigenvalues for each N
-Ns = 2**np.arange(6,8)
+Ns = 2**np.arange(5,8)
 Ncs = [int(1e3), int(1e4), int(1e5)]
 Nc = Ncs[1]
 
@@ -238,21 +255,29 @@ markers = ['o','*','s','^']
 
 plt.figure(figsize=(10,10))
 
+r= 1
+theta = np.linspace(0, 2*np.pi, 100)
+
+x = r*np.cos(theta)
+y = r*np.sin(theta)
+   
+plt.plot(x,y,color='b', lw=1)
+
 for i, Neff in enumerate(Ns):
     flag = f'Ulam_approximation_mapa{mapa}_Sij_eigenvals_N{Neff}_grilla{cx}N_K{K}_Nc{Nc}'
     archives = np.load(flag+'.npz')
     e = archives['arr_0']
-    print(f'N={Neff} ', e.real[1])
+    print(f'N={Neff} ', e.real[:10])
     plt.plot(e.real, e.imag, markers[i], ms=10, alpha=0.6, label=f'N={Neff}')
 plt.xlabel(r'$\Re(\lambda)$')
 plt.ylabel(r'$\Im(\lambda)$')
-plt.xlim(0.5,1)
-plt.ylim(-0.025,0.025)
-# plt.xlim(-1.1,1.1)
-# plt.ylim(-1.1,1.1)
+# plt.xlim(0.5,1)
+# plt.ylim(-0.025,0.025)
+plt.xlim(-1.1,1.1)
+plt.ylim(-1.1,1.1)
 plt.grid(True)
 plt.legend(loc='best')
-plt.savefig('zoom_'+flag+'.png', dpi=300)
+plt.savefig(flag+'.png', dpi=300)
 #%%
 # Copyright Dominique Delande
 # Provided "as is" without any warranty
