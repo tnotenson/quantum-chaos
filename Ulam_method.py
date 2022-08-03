@@ -145,7 +145,7 @@ def evolution(q,p,K,mapa='normal'):
     return qf, pf, nqi, npi
 
 @jit
-def n_from_qp(qf,pf,paso,mapa='normal',symmetry=True):
+def n_from_qp(qf,pf,paso,mapa='normal',symmetry=False):
     
     
     if (mapa=='normal' or mapa=='cat' or mapa=='Harper'):
@@ -154,6 +154,7 @@ def n_from_qp(qf,pf,paso,mapa='normal',symmetry=True):
             pf = 1-pf
             qf = 1-qf
         
+        print(qf, pf, paso)
         nqi = qf//paso
         npi = pf//paso
         
@@ -188,7 +189,7 @@ def qp_from_j(j,Nx,paso,mapa='normal'):
 @jit
 def Ulam(N,Nx,paso,Nc,K,mapa,ruido=10,modulo=1):
     
-    S = ss.coo_matrix((N, N), dtype=np.float64)
+    S = np.zeros((N, N), dtype=np.float64)
     
     for j in tqdm(range(N), 'Ulam approximation'):
         # celda j fija
@@ -200,8 +201,8 @@ def Ulam(N,Nx,paso,Nc,K,mapa,ruido=10,modulo=1):
             # y luego evoluciono un paso
             qf, pf, nqi, npi = CI_and_evolution(qj,pj,paso,K,mapa,ruido)
             qf, pf = gaussian_kernel(qf, pf, paso, ruido,modulo)
-            nqi, npi = n_from_qp(qf, pf, mapa)
-            
+            nqi, npi = n_from_qp(qf, pf, paso,mapa)
+            # print('llega')
             i = int(nqi+npi*Nx)
             
             # print(qf, pf, nqi, npi, i)
@@ -216,10 +217,10 @@ def Ulam_one_trayectory(N,Nx,paso,Nc,K,mapa,symmetry=True):
     Nmitad = N//2
     
     # S = np.zeros((Nmitad,Nmitad))
-    S = ss.coo_matrix((Nmitad, Nmitad), dtype=np.float64)
+    S = np.zeros((Nmitad, Nmitad), dtype=np.float64)
     # inicializo en una condición inicial (cercana al atractor)
     # celda j (en lo posible cerca del atractor)
-    qj = 0.1; pj = 0.1#/(2*np.pi); pj = 0.1/(2*np.pi)
+    qj = 0.1/(2*np.pi); pj = 0.1/(2*np.pi)
     # tomo una CI random en la celda j
     q, p = CI(qj,pj,paso)
 
@@ -279,7 +280,7 @@ def eigenvec_j_to_qp(eigenvector, mapa='normal'):
     return eig_res
     
 #%%
-Ns = np.arange(48,50,2) #np.arange(124,128,2)#np.concatenate((np.arange(20,71,1),np.arange(120,131,2)))#2**np.arange(5,8)
+Ns = np.arange(130,132,2) #np.arange(124,128,2)#np.concatenate((np.arange(20,71,1),np.arange(120,131,2)))#2**np.arange(5,8)
 es = [1e10]#1/1.5]#np.logspace(5,6,1) 
 resonancias = np.zeros((len(Ns),len(es)))
         
@@ -291,7 +292,7 @@ cx = 1
 
 K = 19.74#0.971635406
 
-Nc = int(1e8)
+Nc = int(1e5)
 #%%
 
 for ni in tqdm(range(len(Ns)), desc='loop ni'):
