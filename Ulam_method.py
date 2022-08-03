@@ -276,7 +276,7 @@ def eigenvec_j_to_qp(eigenvector, mapa='normal'):
     return eig_res
     
 #%%
-Ns = np.arange(100,102,2) #np.arange(124,128,2)#np.concatenate((np.arange(20,71,1),np.arange(120,131,2)))#2**np.arange(5,8)
+Ns = np.arange(104,122,2) #np.arange(124,128,2)#np.concatenate((np.arange(20,71,1),np.arange(120,131,2)))#2**np.arange(5,8)
 es = [1e10]#1/1.5]#np.logspace(5,6,1) 
 resonancias = np.zeros((len(Ns),len(es)))
         
@@ -367,8 +367,8 @@ for ni in tqdm(range(len(Ns)), desc='loop ni'):
 # sns.heatmap(vec)
 
 #%%
-Ns = np.concatenate((np.arange(50,64,2),np.arange(100,172,2),np.arange(200,208,2),np.arange(212,232,2)))
-
+# Ns = np.concatenate((np.arange(50,64,2),np.arange(100,172,2),np.arange(200,208,2),np.arange(212,232,2)))
+Ns = np.arange(100,104,2)
 resonancias = np.zeros((len(Ns),len(es)))
 
 for ni in tqdm(range(len(Ns)), desc='loop ni'):
@@ -464,7 +464,7 @@ ax2.set_yticklabels([round(N,1) for N in Ns[::5]])
 ax2.set_ylabel(r'$N$', rotation=0)
 
 
-plt.savefig('resonancias_vs_e_distintos_N_'+flag+'.png', dpi=100)
+# plt.savefig('resonancias_vs_e_distintos_N_'+flag+'.png', dpi=100)
 #%% en funcion de N
 
 # Ns = np.concatenate((np.arange(17.6,71,2.6),np.arange(74.4,80.8,1.6))) #2**np.arange(5,8)
@@ -493,7 +493,7 @@ fit = np.linspace(0,1,len(es))
 cmap = mpl.cm.get_cmap('viridis')
 color_gradients = cmap(fit)  
 
-textstr = r'$\epsilon = $'+f'{es[0]:.2f}'
+textstr = r'$\epsilon = $'+f'{es[0]:e}'
 
 res_mean = np.mean(resonancias[resonancias.shape[0]//2:,:])
 
