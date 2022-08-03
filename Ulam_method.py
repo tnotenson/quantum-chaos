@@ -145,16 +145,12 @@ def evolution(q,p,K,mapa='normal'):
     return qf, pf, nqi, npi
 
 @jit
-def n_from_qp(qf,pf,paso,mapa='normal',symmetry=False):
+def n_from_qp(qf,pf,paso,mapa='normal'):
     
     
     if (mapa=='normal' or mapa=='cat' or mapa=='Harper'):
-        
-        if (symmetry==True and pf>1/2):
-            pf = 1-pf
-            qf = 1-qf
-        
-        print(qf, pf, paso)
+                
+        # print(qf, pf, paso)
         nqi = qf//paso
         npi = pf//paso
         
@@ -246,7 +242,7 @@ def Ulam_one_trayectory(N,Nx,paso,Nc,K,mapa,symmetry=True):
               
         nqi, npi = n_from_qp(qf, pf, paso, mapa)
         
-        # número de celda
+        # número de celda'Ulam'#
         i = int(nqi+npi*Nx)
         
         assert i < Nx**2//2, f'number of cell i={i} out of bounds. Con nqi={nqi} y npi={npi}.'
@@ -275,24 +271,24 @@ def eigenvec_j_to_qp(eigenvector, mapa='normal'):
     eig_res = np.zeros((Nx,Nx))
     for j in range(N):
         q,p = qp_from_j(j, Nx, paso, mapa)
-        print(int(q),int(p))
+        # print(int(q),int(p))
         eig_res[int(q),int(p)] = eigenvector[j]
     return eig_res
     
 #%%
-Ns = np.arange(130,132,2) #np.arange(124,128,2)#np.concatenate((np.arange(20,71,1),np.arange(120,131,2)))#2**np.arange(5,8)
+Ns = np.arange(100,102,2) #np.arange(124,128,2)#np.concatenate((np.arange(20,71,1),np.arange(120,131,2)))#2**np.arange(5,8)
 es = [1e10]#1/1.5]#np.logspace(5,6,1) 
 resonancias = np.zeros((len(Ns),len(es)))
         
 mapa = 'normal'#'absortion'#'dissipation'#'normal'#'cat'#'Harper'#
-method = 'one_trayectory'#'Ulam'#
+method = 'Ulam'#'one_trayectory'#
 eta = 0.3
 a = 2
 cx = 1
 
 K = 19.74#0.971635406
 
-Nc = int(1e5)
+Nc = int(1e3)
 #%%
 
 for ni in tqdm(range(len(Ns)), desc='loop ni'):
