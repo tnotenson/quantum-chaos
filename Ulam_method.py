@@ -17,6 +17,7 @@ from random import random
 import seaborn as sns
 from scipy.stats import norm, multivariate_normal
 from scipy.sparse.linalg import eigs
+import scipy.sparse as ss
 
 plt.rcParams.update({
 "text.usetex": True,
@@ -187,7 +188,7 @@ def qp_from_j(j,Nx,paso,mapa='normal'):
 @jit
 def Ulam(N,Nx,paso,Nc,K,mapa,ruido=10,modulo=1):
     
-    S = np.zeros((N,N))
+    S = ss.coo_matrix((N, N), dtype=np.float64)
     
     for j in tqdm(range(N), 'Ulam approximation'):
         # celda j fija
@@ -214,8 +215,8 @@ def Ulam(N,Nx,paso,Nc,K,mapa,ruido=10,modulo=1):
 def Ulam_one_trayectory(N,Nx,paso,Nc,K,mapa,symmetry=True):
     Nmitad = N//2
     
-    S = np.zeros((Nmitad,Nmitad))
-    
+    # S = np.zeros((Nmitad,Nmitad))
+    S = ss.coo_matrix((Nmitad, Nmitad), dtype=np.float64)
     # inicializo en una condición inicial (cercana al atractor)
     # celda j (en lo posible cerca del atractor)
     qj = 0.1; pj = 0.1#/(2*np.pi); pj = 0.1/(2*np.pi)
@@ -278,7 +279,7 @@ def eigenvec_j_to_qp(eigenvector, mapa='normal'):
     return eig_res
     
 #%%
-Ns = np.arange(26,28,2) #np.arange(124,128,2)#np.concatenate((np.arange(20,71,1),np.arange(120,131,2)))#2**np.arange(5,8)
+Ns = np.arange(48,50,2) #np.arange(124,128,2)#np.concatenate((np.arange(20,71,1),np.arange(120,131,2)))#2**np.arange(5,8)
 es = [1e10]#1/1.5]#np.logspace(5,6,1) 
 resonancias = np.zeros((len(Ns),len(es)))
         
@@ -301,7 +302,7 @@ for ni in tqdm(range(len(Ns)), desc='loop ni'):
         N = Nx**2
         ruido = es[ri]
         
-        print(f'N={Neff}',f'e={ruido}')
+        print(f'N={Neff}d',f'e={ruido}')
         
         paso = 1/Nx
                 
@@ -323,15 +324,15 @@ for ni in tqdm(range(len(Ns)), desc='loop ni'):
         print(f'\nDiagonalización: {t1-t0} seg')
         flag = f'Ulam_approximation_mapa{mapa}_Sij_eigenvals_N{Neff}_ruido{ruido}_grilla{cx}N_K{K}_Nc{Nc}'
         np.savez(flag+'.npz', e=e, evec=evec[:6])
-        del S; 
+        del S; del evec; 
         # plot eigenvalues
-        plt.figure(figsize=(16,8))
-        plt.plot(e.real, e.imag, 'r*', ms=10, alpha=0.7)#, label=r'$\epsilon =${}'.format(es[ri]))
-        plt.xlabel(r'$\Re(\lambda)$')
-        plt.ylabel(r'$\Im(\lambda)$')
+        # plt.figure(figsize=(16,8))
+        # plt.plot(e.real, e.imag, 'r*', ms=10, alpha=0.7)#, label=r'$\epsilon =${}'.format(es[ri]))
+        # plt.xlabel(r'$\Re(\lambda)$')
+        # plt.ylabel(r'$\Im(\lambda)$')
         # plt.xlim(0.49,1.1)
         # plt.ylim(-0.1,0.1)
-        plt.grid(True)
+        # plt.grid(True)
         del e;
         
         
@@ -343,16 +344,16 @@ for ni in tqdm(range(len(Ns)), desc='loop ni'):
         # # fig1 = plt.figure(4)
         # plt.scatter(x, y, s=5, alpha=0.8, label='Diego')
         
-        theta = np.linspace(0, 2*np.pi, 100)
+        # theta = np.linspace(0, 2*np.pi, 100)
            
-        r= 1
+        # r= 1
         
-        x = r*np.cos(theta)
-        y = r*np.sin(theta)
+        # x = r*np.cos(theta)
+        # y = r*np.sin(theta)
            
-        plt.plot(x,y,color='b', lw=1)
-        plt.legend(loc='upper right')
-        plt.savefig(f'autovalores_N{Neff}_Kc_standardmap.png', dpi=100)
+        # plt.plot(x,y,color='b', lw=1)
+        # plt.legend(loc='upper right')
+        # plt.savefig(f'autovalores_N{Neff}_Kc_standardmap.png', dpi=100)
         # plt.show()
         # plt.close()
         
@@ -365,11 +366,11 @@ for ni in tqdm(range(len(Ns)), desc='loop ni'):
 # plt.legend(loc='best')
 # plt.savefig(f'Comparacion_zoom_Ulam_Diego_Neff{Neff}_Nx{Nx}_K{K}.png', dpi=100)
 #%% ploteo un autoestado
-vec = eigenvec_j_to_qp(evec[0])
-sns.heatmap(vec)
+# vec = eigenvec_j_to_qp(evec[0])
+# sns.heatmap(vec)
 
 #%%
-# Ns = np.arange(20,81,2)
+Ns = np.concatenate((np.arange(50,64,2),np.arange(100,172,2),np.arange(200,208,2),np.arange(212,232,2)))
 
 resonancias = np.zeros((len(Ns),len(es)))
 
@@ -511,8 +512,8 @@ rerr = 1/np.sqrt(nc)
 for ri in range(len(es)):
 # ni = 2
     ax1.plot(Ns, resonancias[:,ri], markers[(ri)%4], lw=0.5, ms=10, color=color_gradients[ri], alpha=0.8)
-    ax1.errorbar(Ns, resonancias[:,ri], rerr, marker=None,
-         mec=color_gradients[ri], ms=10, mew=8)
+    ax1.errorbar(Ns, resonancias[:,ri], rerr, marker=None, linestyle='',
+         mec=color_gradients[ri], ms=10, mew=3)
     ax1.set_xlabel(r'$N$')
 ax1.set_ylabel(r'$\lambda$')
 # ax1.set_xscale("log")
@@ -534,10 +535,11 @@ ax1.text(np.mean(Ns), min(resonancias)+0.005, textstr, fontsize=14,
 plt.savefig('resonancias_vs_N_distintos_e_'+flag+'.png', dpi=100)
 #%% 
 from sklearn.linear_model import LinearRegression #Regresión Lineal con scikit-learn
+from scipy.stats import linregress
 x = 1/Ns
 y = resonancias[:,-1]
 
-yerr = 1/np.sqrt(Ns)
+yerr = 1/np.sqrt(nc)
 # instruimos a la regresión lineal que aprenda de los datos (x,y)
 xt = x.reshape(-1,1)
 
@@ -548,17 +550,27 @@ regresion_lineal.fit(xt, y)
 m = regresion_lineal.coef_
 b = regresion_lineal.intercept_
 
-berr = max(yerr)/np.sqrt(np.var(x)*len(x))
-print('m = ' + str(m[0]) + ', b = ' + str(b) +f' +- {berr}' )
+merr = np.std(yerr)*np.sqrt(len(yerr)/(len(yerr)-1))/np.sqrt(np.var(x)*len(x))
+berr = np.std(yerr)*np.sqrt(1/(len(yerr)-1) + np.mean(x)**2/np.var(x)*len(x))
+
+bp, mp = np.polynomial.polynomial.polyfit(x, y, 1, w = [1.0 / ty for ty in yerr], full=False)
+print('mp = ' + str(mp) +f' +- {merr}' + ', bp = ' + str(bp) +f' +- {berr}' )
+
+dom = np.linspace(0,0.05,10000)
+
+print('m = ' + str(m[0]) +f' +- {merr}' + ', b = ' + str(b) +f' +- {berr}' )
 
 plt.figure(figsize=(16,8))
 
 plt.plot(x,y,'r.')
-plt.plot(x,m*x+b,'-b',label=r'$mN^{-1}+b$')
+plt.plot(dom,m*dom+b,'-b',label=r'$mN^{-1}+b$')
+plt.errorbar(x, y, yerr, marker=None, linestyle='',
+     mec=color_gradients[ri], ms=10, mew=3)
 plt.xlabel(r'$N^{-1}$')
 plt.ylabel(r'$\lambda$')
 plt.grid(True)
 plt.legend(loc='best')
+plt.xlim(0,0.05)
 # plt.show()
 
 plt.savefig(f'extrapolacion_resonancia_clasica_Ninfty_ajuste_lineal_method{method}_mapa{mapa}_Nc{Nc}_Nmin{min(Ns)}_Nmax{max(Ns)}_lenN{len(Ns)}.png', dpi=80)
@@ -578,7 +590,9 @@ regresion_lineal.fit(xt, y)
 m = regresion_lineal.coef_
 b = regresion_lineal.intercept_
 
-berr = 0#max(yerr)/np.sqrt(len(resonancias))
+merr = np.std(yerr)*np.sqrt(len(yerr)/(len(yerr)-1))/np.sqrt(np.var(x)*len(x))
+berr = np.std(yerr)*np.sqrt(1/(len(yerr)-1) + np.mean(x)/np.sqrt(np.var(x)*len(x)))
+
 print('m = ' + str(m[0]) + ', b = ' + str(b) +f' +- {berr}' )
 
 lambda_lineal = np.exp(-1/2*b)
