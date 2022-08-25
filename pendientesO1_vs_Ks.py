@@ -125,3 +125,22 @@ plt.legend(loc = 'best')
 
 file = flag+f'_K{Ks[k]:.1f}_basis_size{N}_time_lim{time_lim}'+operatorss+modif+'.png'
 plt.savefig(file, dpi=80)
+#%% pendientes vs K
+
+listas = np.genfromtxt('pendientes.txt', usecols=(0,1), delimiter=',')#, delimiter=',')
+Ks = listas[:,0]
+pendientes = listas[:,1]
+pend_normed = (pendientes - min(pendientes))/(max(pendientes) - min(pendientes))
+
+plt.figure(figsize=(16,8))
+plt.title(f'A={opA}, B={opB}. N={N}')
+plt.plot(Ks, pend_normed, '.-b', lw=1.5, label='normed')
+plt.plot(Ks, pendientes, '.-r', lw=1.5, label='not normed')
+plt.ylabel(r'$\lambda$')
+plt.xlabel(r'$K$')
+plt.xticks(Ks[::5], rotation=0, fontsize=12)
+plt.ylim(-0.01,1.01)
+# plt.xlim(-0.2,max(times)+0.2)
+plt.grid(True)
+plt.legend(loc = 'best')
+plt.savefig(f'pendientes_vs_K_N5000_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_basis_size{N}_time_lim{time_lim}.png', dpi=80)
