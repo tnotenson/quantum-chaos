@@ -55,11 +55,11 @@ def eigenvec_j_to_qp(eigenvector, mapa='normal'):
         eig_res[int(Nx*q),int(Nx*p)] = eigenvector[j]
     return eig_res
 #%% define parameters and compute resonances
-N = 50
+N = 40
 K = 19.74
-nvec = 10
+nvec = N**2
 
-ss = np.arange(1,10)*1e-3
+ss = [0.001]#np.arange(1,10)*1e-3
 
 es = np.zeros((len(ss),nvec), dtype=np.complex_)
 
@@ -73,8 +73,8 @@ for num,s in tqdm(enumerate(ss),desc='loop s'):
             U[i,j] = mat_elem_U(N,xp,yp,x,y,K,mapa='estandar',s=s)
     # U = U
     t0 = time()
-    # e, evec = np.linalg.eig(U)
-    e, evec = eigs(U,k=nvec)
+    e, evec = np.linalg.eig(U)
+    # e, evec = eigs(U,k=nvec)
     print(f'Diagonalization: {time()-t0} s')
     eabs = np.abs(e)
     evec=evec[:,eabs.argsort()[::-1]]
@@ -90,10 +90,15 @@ theta = np.linspace(0, 2*np.pi, 100)
 x = r*np.cos(theta)
 y = r*np.sin(theta)
 
+lim = np.abs(e)[1]
+print(lim)
+
 plt.figure(figsize=(10,6))
 plt.plot(x,y,color='b', lw=1)
 plt.ylabel(r'$\Im(\lambda)$')
 plt.xlabel(r'$\Re(\lambda)$')
+plt.xlim(-lim,lim)
+plt.ylim(-lim,lim)
 
 markers = ['o','v','^','>','<','8','s','p','*']
 
