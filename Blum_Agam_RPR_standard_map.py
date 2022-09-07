@@ -32,7 +32,11 @@ def finite_delta(x,s,cant=3):
 # plt.plot(dom,finite_delta(dom,s=0.01))
 
 def mat_elem_U(N,xp,yp,x,y,K,mapa='estandar',*args,**kwargs): 
-    U = finite_delta((yp-(y+K/dpi*np.sin(dpi*x))%1)%1,s)*finite_delta((xp-(x+y+K/dpi*np.sin(dpi*x))%1)%1,s)
+    x0 = x%1
+    y0 = y%1
+    y1 = (y0 + K/dpi*np.sin(dpi*x0))%1
+    x1 = (x0 + y1)%1
+    U = finite_delta((yp - y1)%1,s)*finite_delta((xp - x1)%1,s)
     return U
 
 def qp_from_j(j,N):
@@ -51,11 +55,11 @@ def eigenvec_j_to_qp(eigenvector, mapa='normal'):
         eig_res[int(Nx*q),int(Nx*p)] = eigenvector[j]
     return eig_res
 #%% define parameters and compute resonances
-N = 30
+N = 50
 K = 19.74
-nvec = 20
+nvec = 10
 
-ss = np.arange(1,6)*1e-3
+ss = np.arange(1,10)*1e-3
 
 es = np.zeros((len(ss),nvec), dtype=np.complex_)
 
@@ -78,6 +82,7 @@ for num,s in tqdm(enumerate(ss),desc='loop s'):
     es[num,:] = e
     
     # print(np.abs(e[:nevec]))
+np.savez(f'Blum_Agam_evals_K{K}_N{N}_smin{min(ss)}_smax{max(ss)}.npz', es=es, ss=ss)
 #%% plot eigenvalues and unit circle in complex plane
 r = 1
 theta = np.linspace(0, 2*np.pi, 100)
@@ -96,16 +101,17 @@ fit = np.linspace(0,1,len(e))
 cmap = mpl.cm.get_cmap('viridis')
 color_gradients = cmap(fit)  
 
-for num in range(len(e)): 
-    e = es[:,num]
+# for num in range(len(e)):
+for num in range(len(ss)):
+    # e = es[:,num]
+    e = es[num,:]
     x = np.real(e)
     y = np.imag(e)
     plt.plot(x,y,'.', color=color_gradients[num], marker=markers[num%len(markers)] ,ms=7, alpha=0.65)
 #%% plot eigenvectors
 
-
 # for i in range(evec.shape[1]):#ies:#
-i = 5
+i = 1
 hus = np.abs(eigenvec_j_to_qp(evec[:,i]))#**2
 plt.figure()
 plt.title(f'Standard Map. N={N} K={K}, i={i}, eval={np.abs(e[i]):.3f}')
