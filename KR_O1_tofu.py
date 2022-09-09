@@ -8,12 +8,14 @@ Kicked Rotor O1(t) for tofu@df.uba.ar
 @author: tomasnotenson
 """
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import numpy as np
 from numba import jit
 from qutip import *
 from time import time
 from tqdm import tqdm # customisable progressbar decorator for iterators
 from cmath import phase
+from sklearn.linear_model import LinearRegression #Regresión Lineal con scikit-learn
 
 @jit(nopython=True, parallel=True, fastmath = True)#, cache=True)#(cache=True)#(nopython=True)
 def FF(N, x1 = 0, p1 = 0):
@@ -221,77 +223,158 @@ operatorss = 'A'+opA+'_B'+opB
 
 # Kspelado = np.array([0.5])#(np.arange(0.3, 0.51, 0.2))#
 
-Kpaso = 1/4
-Ks = np.arange(3,10,Kpaso)##np.array([2, 5, 8, 12, 15, 17, 19.74])#Kspelado*(4*np.pi**2) # K values np.array([Kpelado])
+Kpaso = 0#1/4
+Ks = [6]#np.arange(3,10,Kpaso)##np.array([2, 5, 8, 12, 15, 17, 19.74])#Kspelado*(4*np.pi**2) # K values np.array([Kpelado])
 
-# Define basis size        
-N = 8000#**11 # Tiene que ser par
+Ns = [10000]#np.arange(1,9)*1e3
 
-# Define position and momentum values in the torus
-qs = np.arange(0, N) #take qs in [0;N) with qs integer
+for n,N in enumerate(Ns):
+    
+    
+    # Define basis size        
+    # N = 8000#**11 # Tiene que ser par
+    N = int(N)
+    
+    # Define position and momentum values in the torus
+    qs = np.arange(0, N) #take qs in [0;N) with qs integer
+    
+    t0 = time()
+    # Define Schwinger operators
+    Us = fU(N, qs)
+    Vs = fV(N)
+    
+    # Define Schwinger operators
+    # Us_numpy = fU_numpy(N, qs)
+    # Vs_numpy = fV_numpy(N)
+    
+    # # # Define momentum and position operatorsÇ
+    P = (Vs - Vs.dag())/(2j)
+    X = (Us - Us.dag())/(2j)
+    
+    # P_numpy = (Vs_numpy - Vs_numpy.H)/2j
+    # X_numpy = (Us_numpy - Us_numpy.H)/2j
+    t1 = time()
+    print(f'Tiempo operadores: {t1-t0}')
+    
+    # Select operators for the out-of-time correlators
+    # A = P
+    # B = X
+    
+    A = X.data.toarray()
+    B = P.data.toarray()
+    
+    
+    # Define pure state
+    t2 = time()
+    # sigma = 1/(2*np.pi*N)/10000
+    # state0 = gaussian_state(int(N/2), 0, sigma)
+    # state0 = gaussian_state(int(N/2), 0, sigma, ket=True)
+    
+    # numpy states
+    # n0 = 0
+    # state0_numpy = gaussian_state_numpy(int(N/2), n0, sigma)
+    # state0_numpy = gaussian_state_numpy(int(N/2), 0, sigma, ket=True)
+    t3 = time()
+    print(f'Tiempo estado: {t3-t2}')
+    # Define time array
+    time_lim = int(5e1+1) # number of kicks
+    
+    # Neff = 80
+    # ruido = 1e-6
+    # mapa = 'normal'
+    # cx = 1
+    # K = Ks[0]
+    # Nc = int(1e6)
+    
+    # flag = f'Ulam_approximation_mapa{mapa}_Sij_eigenvals_N{Neff}_ruido{ruido}_grilla{cx}N_K{K}_Nc{Nc}'
+    # archives = np.load(flag+'.npz')
+    # evec = archives['evec']
+    # sustate = eigenvec_j_to_qp(evec[0])
+    
+    phi = []#np.identity(N)#-sustate
+    
+    modif = ''#'_sust_evec0'
+    
+    # ### compute OTOC with O1 and O2 in the "Heisenberg picture"
+    O1_Ks, r_Ks, flag = O1_Evolution_FFT_numpy(time_lim, N, Ks, A, B, op ='X', r=True, phi=phi)
+    
+    # O1 = np.abs(O1_Ks)
+    # # define file name
+    
+    file = flag+f'_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_basis_size{N}_time_lim{time_lim}'+operatorss+modif+'.npz'#+'_evolucion_al_reves' _centro{n0}
+    np.savez(file, O1=O1_Ks, r_Ks=r_Ks, Ks=Ks)
+#%% plot O1 vs t para varios N
 
-t0 = time()
-# Define Schwinger operators
-Us = fU(N, qs)
-Vs = fV(N)
 
-# Define Schwinger operators
-# Us_numpy = fU_numpy(N, qs)
-# Vs_numpy = fV_numpy(N)
+markers = ['o','v','^','>','<','8','s','p','*']
 
-# # # Define momentum and position operatorsÇ
-P = (Vs - Vs.dag())/(2j)
-X = (Us - Us.dag())/(2j)
+fit = np.linspace(0,1,len(Ns))
+cmap = mpl.cm.get_cmap('viridis')
+color_gradients = cmap(fit)  
 
-# P_numpy = (Vs_numpy - Vs_numpy.H)/2j
-# X_numpy = (Us_numpy - Us_numpy.H)/2j
-t1 = time()
-print(f'Tiempo operadores: {t1-t0}')
+K = Ks[0]
 
-# Select operators for the out-of-time correlators
-# A = P
-# B = X
+plt.figure(figsize=(16,8))
+plt.title(f'A={opA}, B={opB}')
 
-A = X.data.toarray()
-B = P.data.toarray()
+times = np.arange(0,time_lim)
 
+pendientes = np.zeros((len(Ns)))
 
-# Define pure state
-t2 = time()
-# sigma = 1/(2*np.pi*N)/10000
-# state0 = gaussian_state(int(N/2), 0, sigma)
-# state0 = gaussian_state(int(N/2), 0, sigma, ket=True)
+for n,N in enumerate(Ns):
+    
+    # Define basis size        
+    N = int(N)
+    
+    file = flag+f'_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_basis_size{N}_time_lim{time_lim}'+operatorss+modif+'.npz'#+'_evolucion_al_reves' _centro{n0}
+    archives = np.load(file)
+    O1_Ks = archives['O1']
+       
 
-# numpy states
-# n0 = 0
-# state0_numpy = gaussian_state_numpy(int(N/2), n0, sigma)
-# state0_numpy = gaussian_state_numpy(int(N/2), 0, sigma, ket=True)
-t3 = time()
-print(f'Tiempo estado: {t3-t2}')
-# Define time array
-time_lim = int(5e1+1) # number of kicks
+    y = np.abs(O1_Ks[0])/N
 
-# Neff = 80
-# ruido = 1e-6
-# mapa = 'normal'
-# cx = 1
-# K = Ks[0]
-# Nc = int(1e6)
+    x = times
+    
+    # oo = O1s[0] - resonancias[k]**(2*x[0])
+    
+    linf=3
+    lsup=7
+    xt = x[linf:lsup].reshape(-1,1)
+    yt = np.log10(y[linf:lsup])
+    
+    regresion_lineal = LinearRegression() # creamos una instancia de LinearRegression
+    
+    regresion_lineal.fit(xt, yt) 
+    # vemos los parámetros que ha estimado la regresión lineal
+    m = regresion_lineal.coef_
+    b = regresion_lineal.intercept_
+    
+    pend = np.sqrt(10**m[0])
+    pendientes[n] = pend
+    print(f'pendiente = {pend}')
+    
+    
+    plt.plot(x, 10**(m*x+b), '-', color=color_gradients[n], lw=1.5, label=f'{np.sqrt(10**m[0]):.3f}**(2*t) ', alpha=0.6)
+    plt.plot(times, y, '.-', ms=10, lw=1.5, label=f'N={N}',  color=color_gradients[n])
+plt.ylabel(r'$O_1$')
+plt.xlabel(r'$t$')
+plt.xticks(times)
+plt.yscale('log')
+plt.ylim(1e-7,1.1)
+plt.xlim(-0.01,21)
+plt.grid()
+plt.legend(loc = 'best')
+plt.savefig('O1_vs_t_Ns.png')
 
-# flag = f'Ulam_approximation_mapa{mapa}_Sij_eigenvals_N{Neff}_ruido{ruido}_grilla{cx}N_K{K}_Nc{Nc}'
-# archives = np.load(flag+'.npz')
-# evec = archives['evec']
-# sustate = eigenvec_j_to_qp(evec[0])
-
-phi = []#np.identity(N)#-sustate
-
-modif = ''#'_sust_evec0'
-
-# ### compute OTOC with O1 and O2 in the "Heisenberg picture"
-O1_Ks, r_Ks, flag = O1_Evolution_FFT_numpy(time_lim, N, Ks, A, B, op ='X', r=True, phi=phi)
-
-# O1 = np.abs(O1_Ks)
-# # define file name
-
-file = flag+f'_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_basis_size{N}_time_lim{time_lim}'+operatorss+modif+'.npz'#+'_evolucion_al_reves' _centro{n0}
-np.savez(file, O1=O1_Ks, r_Ks=r_Ks, Ks=Ks)
+#%% plot pendientes vs N
+plt.figure(figsize=(16,8))
+plt.plot(Ns, pendientes, '.-', ms=10, lw=1.5)
+plt.ylabel(r'$pendientes$')
+plt.xlabel(r'$N$')
+plt.xticks(times)
+plt.xscale('log')
+# plt.ylim(1e-7,1.1)
+# plt.xlim(-0.01,21)
+plt.grid()
+# plt.legend(loc = 'best')
+plt.savefig('pend_vs_N.png')
