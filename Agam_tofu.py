@@ -82,9 +82,9 @@ Ks = np.arange(0,20,Kpaso)
 
 cte = np.sqrt(90)*0.001
 Npaso = 5
-Ns = [5000]#np.arange(60,81,Npaso)
+Ns = [80]#np.arange(60,81,Npaso)
 K = 13 
-ss = cte/np.sqrt(Ns)##np.arange(1,5)*1e-3
+ss = 1/5000#cte/np.sqrt(Ns)##np.arange(1,5)*1e-3
 
 N = Ns[0]
 nvec = N**2
