@@ -8,16 +8,29 @@ Created on Mon Sep 12 20:01:29 2022
 # import libraries and define rutines
 import numpy as np
 from tqdm import tqdm
-from matplotlib import pyplot as plt
-import matplotlib as mpl
 from time import time
-from scipy.sparse.linalg import eigs
-import seaborn as sb
-from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
 dpi = 2*np.pi
 
 def finite_delta(x,s,cant=3):
+    '''
+    Define coarse-grained delta function
+
+    Parameters
+    ----------
+    x : array_like
+        domain
+    s : float
+        width
+    cant : integer, optional
+        number of gaussians in sum. The default is 3.
+
+    Returns
+    -------
+    d : array_like
+        coarse-grained delta values.
+
+    '''
     d = 0
     for npr in range(cant):
         n = npr - cant//2
@@ -28,7 +41,38 @@ def finite_delta(x,s,cant=3):
 # dom = np.linspace(0,1,100)
 # plt.plot(dom,finite_delta(dom,s=0.01))
 
-def mat_elem_U(N,xp,yp,x,y,K,mapa='estandar',forma='comun',*args,**kwargs): 
+def mat_elem_U(xp,yp,x,y,K,forma='comun',*args,**kwargs):
+    '''
+    create matrix elements of Perron-Frobenius operator
+    
+    <xp,yp|U|x,y>
+
+    Parameters
+    ----------
+    xp : float
+        left position value
+    yp : float
+        left momentum value
+    x : float
+        right position value
+    y : float
+        right momentum value
+    K : float
+        chaos parameter
+    forma : string, optional
+        'comun', first free evolution then kick o 'alternativa', first kick then free evolution. The default is 'comun'.
+    x : array_like
+        domain
+    s : float
+        width
+    cant : integer, optional
+        number of gaussians in sum. The default is 3.
+    Returns
+    -------
+    U : float
+        Perron-Frobenius operator element
+
+    '''
     x0 = x%1
     y0 = y%1
     if forma=='comun':
@@ -44,12 +88,45 @@ def mat_elem_U(N,xp,yp,x,y,K,mapa='estandar',forma='comun',*args,**kwargs):
     return U
 
 def qp_from_j(j,N):
+    '''
+    associate (q,p) with cell j
+
+    Parameters
+    ----------
+    j : integer
+        cell
+    N : integer
+        grid of N x N cells
+
+    Returns
+    -------
+    qj : float
+        position
+    pj : float
+        momentum
+
+    '''
     paso = 1/N
     qj = (j%N)*paso
     pj = ((j//N)%N)*paso
     return qj, pj
 
 def eigenvec_j_to_qp(eigenvector, mapa='normal'):
+    '''
+    change representation of vectors from cell to (q,p)
+
+    Parameters
+    ----------
+    eigenvector : array_like
+        vector in cell representation
+
+
+    Returns
+    -------
+    eig_res : array_like
+        vector in (q,p) representation
+
+    '''
     N = len(eigenvector)
     Nx = int(np.sqrt(N))
     eig_res = np.zeros((Nx,Nx), dtype=np.complex_)
@@ -60,12 +137,47 @@ def eigenvec_j_to_qp(eigenvector, mapa='normal'):
     return eig_res
 
 def Blum_Agam_Perron_Frobenius(*args,**kwargs):
+    '''
+    Blum Agam algorithm 
+
+    Parameters
+    ----------
+    j : integer
+        cell
+    N : integer
+        grid of N x N cells
+    xp : float
+        left position value
+    yp : float
+        left momentum value
+    x : float
+        right position value
+    y : float
+        right momentum value
+    K : float
+        chaos parameter
+    forma : string, optional
+        'comun', first free evolution then kick o 'alternativa', first kick then free evolution. The default is 'comun'.
+    x : array_like
+        domain
+    s : float
+        width
+    cant : integer, optional
+        number of gaussians in sum. The default is 3.
+    Returns
+    -------
+    e : array_like
+        array of eigenvalues
+    evec : array_like
+        array of eigenvectors
+
+    '''
     U = np.zeros((N**2,N**2), dtype=np.complex_)
     for i in tqdm(range(N**2), desc='loop 1 celdas'):
         for j in range(N**2):    
             x,y = qp_from_j(i,N)
             xp,yp = qp_from_j(j,N)
-            U[i,j] = mat_elem_U(N,xp,yp,x,y,K,mapa='estandar',forma='alternativa',s=s)
+            U[i,j] = mat_elem_U(xp,yp,x,y,K,forma='alternativa',s=s)
     # U = U
     t0 = time()
     e, evec = np.linalg.eig(U)
@@ -75,21 +187,25 @@ def Blum_Agam_Perron_Frobenius(*args,**kwargs):
     evec=evec[:,eabs.argsort()[::-1]]
     e = e[eabs.argsort()][::-1]/eabs[0]
     return e, evec
-#%% simulation vs K
 
-Kpaso = 20/100
-Ks = np.arange(0,20,Kpaso)
 
-cte = np.sqrt(90)*0.001
+#%% simulation vs parameter
+
+# Kpaso = 20/20
+# Ks = np.arange(18,20.1,Kpaso)
+
+cte = 90*0.001
 Npaso = 5
-Ns = [80]#np.arange(60,81,Npaso)
+Ns = np.arange(80,81,Npaso)
 K = 13 
-ss = 1/5000#cte/np.sqrt(Ns)##np.arange(1,5)*1e-3
+ss = cte/Ns##np.arange(1,5)*1e-3
 
-N = Ns[0]
-nvec = N**2
+for N in tqdm(Ns, desc='N loop'):
+    
+    # N = Ns[-1]
+    nvec = N**2
 
-for K in Ks:
+# for K in Ks:
     
     es = np.zeros((len(ss),nvec), dtype=np.complex_)
             
@@ -97,4 +213,6 @@ for K in Ks:
           
         es[num,:],_ = Blum_Agam_Perron_Frobenius(N,s,K)
                 
-    np.savez(f'Blum_Agam_evals_K{K}_Nsfijo_N{N}_smin{min(ss):.4f}_smax{max(ss):.4f}.npz', es=es, ss=ss)
+    np.savez(f'Blum_Agam_evals_K{K:.1f}_Nsfijo_N{N}_smin{min(ss):.4f}_smax{max(ss):.4f}.npz', es=es, ss=ss)
+    del es; #del ss;
+#%%
