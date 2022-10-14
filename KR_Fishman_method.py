@@ -141,7 +141,7 @@ def matrix_U_Fourier(N,K,*args,**kwargs):
                     j = int(nmpi+nkpi*N)
                     # print(i,k,m,j,kp,mp)
                     
-                    U[i,j] = element_U_Fourier(k, m, kp, mp, K)
+                    U[i,j] = element_U_Fourier(k, m, kp, mp, K, sigma=sigma)
     return U
 #%% #%% some plot parameters
 import matplotlib as mpl
@@ -202,18 +202,19 @@ def get_axis_limits(ax, scalex=.1, scaley=.85):
 
 colorlist=[plt.cm.brg(i) for i in np.linspace(0, 1, 6)]
 #%% try it. Create Perron-Frobenius matrix
-N = 30
+N = 18
+sigma = 0.2
 Kpaso = 0.1
 Ks = np.arange(0,20,Kpaso)
 es = np.zeros((len(Ks)), dtype=np.complex_)
 
 for ki in range(len(Ks)):
     K = Ks[ki]
-    U = matrix_U_Fourier(N, K)
+    U = matrix_U_Fourier(N, K, sigma=0.2)
     # Diagonalize it
     t0=time()
     # e, evec = np.linalg.eig(U)
-    e, evec = eigs(U, k=2)
+    e, evec = eigs(U, k=4)
     eabs = np.abs(e)
     evec=evec[:,eabs.argsort()[::-1]]
     e = e[eabs.argsort()][::-1]
@@ -221,7 +222,7 @@ for ki in range(len(Ks)):
     print(f'Diagonalization: {t1-t0} seg')
     print(f'K={K}',f'|e|={np.abs(e)[1]}')
     es[ki] = e[1]
-filename = f'Fishman_N{N}_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}'
+filename = f'Fishman_N{N}_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_sigma{sigma}'
 np.savez(filename+'.npz', Ks=Ks, es=es)
 
 #%% plot es vs Ks
@@ -318,8 +319,15 @@ Agam_archivo = np.array([[ 0.2       ,  0.99008465,  0.98628311],
 
 x2 = Agam_archivo[:,0]; y2 = Agam_archivo[:,1]
 
+N = 10
+filename = f'Fishman_N{N}_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_sigma{sigma}'
+
+archives = np.load(filename+'.npz')
+Ks = archives['Ks']
+es = archives['es']
+
 plt.figure(figsize=(16,8))
-plt.title(f'K={13}')
+# plt.title(f'K={13}')
 plt.plot(Ks,np.abs(es),'.-', label=f'Fishman N={N}')
 plt.plot(x2,y2, '.-', label=r'Agam N=90 s=1e-3')
 plt.xlabel(r'$K$')
@@ -327,3 +335,13 @@ plt.ylabel(r'$|\epsilon|$')
 plt.legend(loc='best')
 plt.tight_layout()
 plt.savefig(f'Fishman_vs_K'+filename+'.png',dpi=80)
+#%% add sigma value to filename
+# import os
+
+# for N in [10,18,20]:
+#     filename = f'Fishman_N{N}_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}'
+    
+#     old_name = filename+'_sigma{sigma}'+'.npz'
+#     new_name = filename+f'_sigma{sigma}'+'.npz'
+    
+#     os.rename(old_name, new_name)
