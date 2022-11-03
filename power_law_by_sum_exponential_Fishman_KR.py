@@ -374,7 +374,7 @@ def power_law_by_exp(t, resonancia):
     return np.exp(-resonancia*t)
 
 # number of eigenvalues in real axis
-points = 200
+points = 18 
 i=0
 j=0
 resonancias = np.zeros(points)
@@ -391,7 +391,7 @@ t = np.arange(40)
 fx = 0 
 for r in range(len(resonancias)):
     fx += power_law_by_exp(resonancias[r],t)
-
+fx = np.abs(fx)/18*4
 # PEDIR LIMITES DE AJUSTE AL USUARIO
 # tipo = 'power law'
 # print('\n\n%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
@@ -406,6 +406,9 @@ for r in range(len(resonancias)):
 
 linf_plaw=20
 lsup_plaw=40
+linf = linf_plaw
+lsup = lsup_plaw
+tamanio = lsup-linf
 
 pest,pcov = ajuste_curve_fit(t,np.abs(fx),linf_plaw,lsup_plaw)
 b, m = pest
@@ -415,6 +418,7 @@ plt.figure(figsize=(10,10))
 plt.title(f'cant de resonancias = {points}. Fishman')
 plt.plot(t, np.abs(fx), '.-', label=r'$O_1$')
 plt.plot(t[1:], np.exp(m*np.log(t[1:])+b), '-r', lw=1.5, label=f'slope = {m:.2f}'+r'$\pm$'+f'{SEm:.2f}', alpha=0.6)
+plt.fill_between(x[linf:lsup],0*np.ones(tamanio),1.3*np.ones(tamanio), alpha=0.3)
 # plt.plot(t,np.exp(-1.51*np.log(t)+b))
 plt.xlabel(r'$t$')
 # plt.xlim(theta_min_for_plot,theta_max_for_plot)
