@@ -245,6 +245,7 @@ t1=time()
 print(f'Diagonalization: {t1-t0} seg')
 print(f'K={K}',f'|e|={np.abs(e)[1]}')
 #%% plots eigenvalues
+
 thetas=np.linspace(0,dpi,200)
 r = 1
 plt.figure(figsize=(10,10))
@@ -254,11 +255,126 @@ plt.xlabel(r'Re$(\epsilon)$')
 plt.ylabel(r'Im$(\epsilon)$')
 plt.tight_layout()
 #%%
+from scipy.optimize import curve_fit
+from sklearn.linear_model import LinearRegression #Regresión Lineal con scikit-learn
+### Podemos agregar una función para propagar errores 
+
+# def normalize(x):
+#     return (x-min(x))/(max(x)-min(x))
+
+def lin_mod(x,b0,b1):
+    '''
+    Linear function
+
+    Parameters
+    ----------
+    x : array_like or float
+        domain value/s
+    b0 : float
+        intercept parameter
+    b1 : float
+        slope parameter
+
+    Returns
+    -------
+    float 
+    f(x) value of linear model
+    '''
+    return b0 + b1*x
+def SE_par_lm(x,y,b0,b1):
+    '''
+    Compute standard errors for the linear fit parameters
+
+    Parameters
+    ----------
+    x : array_like
+        x data
+    y : array_like
+        y data
+    b0 : float
+        intercept b0 estimation 
+    b1 : float
+        slope b1 estimation 
+
+    Returns
+    -------
+    SE0 : float
+        intercept b0 standard error 
+    SE1 : float
+        slope b1 standard error
+
+    '''
+    n = len(x)
+    df = n-2
+    xbar = np.mean(x)
+    Sx = np.sum((x-xbar)**2)/(n-1)
+    sigma_squared = np.sum((y-b0-b1*x)**2)/df
+    Var0 = sigma_squared*(1/n + xbar**2/((n-1)*Sx))
+    SE0 = np.sqrt(Var0)
+    Var1 = sigma_squared/((n-1)*Sx)
+    SE1 = np.sqrt(Var1)
+    print(f'n={n}, df={df}, xbar={xbar}, sigma_squared={sigma_squared}, Sx={Sx}')
+    print(f'var0={Var0}, var1={Var1}, SE0={SE0}, SE1={SE1}')
+    return SE0,SE1
+
+def ajuste_curve_fit(x,y,linf,lsup,tipo='power law'):
+    '''
+    Linear fit permormed by curve fit xD
+
+    Parameters
+    ----------
+    x : array_like 
+        domain values
+    x : array_like 
+        image values
+    linf : integer
+        initial time for fit interval
+    lsup : integer
+        final time for fit interval
+
+    Returns
+    -------
+    pest : array_like
+        parameter values
+    pcov : array_like
+        covariance matrix
+
+    '''        
+    # variables for fit
+    if tipo=='exponential':
+        xt = x[linf:lsup]#.reshape(-1,1)
+    elif tipo=='power law':
+        xt = np.log(x[linf:lsup])#.reshape(-1,1)
+    # print(tipo, xt)
+    yt = np.log(y[linf:lsup])
+    pest, pcov = curve_fit(lin_mod, xt, yt)
+    return pest,pcov
+
+def ajuste(x,y,linf,lsup,tipo='power law'):
+    
+    # variables for fit
+    if tipo=='exponential':
+        xt = x[linf:lsup].reshape(-1,1)
+    elif tipo=='power law':
+        xt = np.log(x[linf:lsup]).reshape(-1,1)
+    yt = np.log(y[linf:lsup])
+    # fit
+    regresion_lineal = LinearRegression() # creamos una instancia de LinearRegression
+    regresion_lineal.fit(xt, yt) 
+
+    # estimated parameters
+    b0 = regresion_lineal.intercept_
+    b1 = regresion_lineal.coef_
+    
+    SE0, SE1 = SE_par_lm(x[linf:lsup],y[linf:lsup],b0,b1)
+    return b0,b1,SE0,SE1
+
+
 def power_law_by_exp(t, resonancia):
     return np.exp(-resonancia*t)
 
 # number of eigenvalues in real axis
-points = 20
+points = 200
 i=0
 j=0
 resonancias = np.zeros(points)
@@ -276,17 +392,36 @@ fx = 0
 for r in range(len(resonancias)):
     fx += power_law_by_exp(resonancias[r],t)
 
+# PEDIR LIMITES DE AJUSTE AL USUARIO
+# tipo = 'power law'
+# print('\n\n%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
+# print(tipo)
+# input_linf_plaw = input("Desea cambiar el linf?\nPresione Enter si NO\nIngrese el nuevo valor del límite inferior del ajuste si SI\n:")
+# if input_linf_plaw!='':
+#     linf_plaw = int(input_linf_plaw)  
+    
+# input_lsup_plaw = input("Desea cambiar el lsup?\nPresione Enter si NO\nIngrese el nuevo valor del límite superior del ajuste si SI\n:")
+# if input_lsup_plaw!='':
+#     lsup_plaw = int(input_lsup_plaw)+1
+
+linf_plaw=20
+lsup_plaw=40
+
+pest,pcov = ajuste_curve_fit(t,np.abs(fx),linf_plaw,lsup_plaw)
+b, m = pest
+SEb,SEm = np.sqrt(np.diag(pcov))
+
 plt.figure(figsize=(10,10))
 plt.title(f'cant de resonancias = {points}. Fishman')
 plt.plot(t, np.abs(fx), '.-', label=r'$O_1$')
+plt.plot(t[1:], np.exp(m*np.log(t[1:])+b), '-r', lw=1.5, label=f'slope = {m:.2f}'+r'$\pm$'+f'{SEm:.2f}', alpha=0.6)
+# plt.plot(t,np.exp(-1.51*np.log(t)+b))
 plt.xlabel(r'$t$')
 # plt.xlim(theta_min_for_plot,theta_max_for_plot)
 plt.ylabel(r'$\sum_i \exp(-\epsilon_i.t) $')
 plt.yscale('log')
 plt.xscale('log')
-# plt.xlim(0,50)
-# plt.ylim(0,1)
-# plt.ylim(I_min_for_plot,I_max_for_plot)
+plt.legend(loc='best')
 plt.tight_layout()
 plt.savefig('power_law_by_exponential_Fishman.png', dpi=80)
 
