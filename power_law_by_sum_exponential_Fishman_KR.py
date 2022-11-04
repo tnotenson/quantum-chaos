@@ -254,7 +254,8 @@ plt.plot(np.real(e),np.imag(e), '.r', ms=5)
 plt.xlabel(r'Re$(\epsilon)$')
 plt.ylabel(r'Im$(\epsilon)$')
 plt.tight_layout()
-#%%
+plt.savefig(f'autovalores_Fishman_K{K}.png', dpi=80)
+#%% cantidad de resonancias fijas
 from scipy.optimize import curve_fit
 from sklearn.linear_model import LinearRegression #Regresión Lineal con scikit-learn
 ### Podemos agregar una función para propagar errores 
@@ -371,27 +372,43 @@ def ajuste(x,y,linf,lsup,tipo='power law'):
 
 
 def power_law_by_exp(t, resonancia):
-    return np.exp(-resonancia*t)
+    return np.exp(resonancia*t)
+
+def lambdaexp_sum(t, ei):
+    return ei**(2*t)
 
 # number of eigenvalues in real axis
-points = 18 
+points = 20
 i=0
 j=0
-resonancias = np.zeros(points)
-while i<points and j<len(e):    
-    if np.real(e[j])==np.abs(e[j]):
-        resonancias[i] = np.abs(e[j])
-        i+=1
-    j+=1
+# resonancias = np.zeros(points)
+# while i<points and j<len(e):    
+#     if np.abs(np.real(e[j]))==np.abs(e[j]):
+#         print(e[j])
+#         resonancias[i] = 2*np.log(np.abs(e[j]))
+#         i+=1
+#     j+=1
+resonancias = 2*np.log(np.abs(e[:points]))
 
 # time
-t = np.arange(40)
+t = np.arange(30)
 
 # O1
+c1 = 1
 fx = 0 
+# f2 = 0
+
 for r in range(len(resonancias)):
-    fx += power_law_by_exp(resonancias[r],t)
-fx = np.abs(fx)/18*4
+    if r==0:
+        fx+= c1*power_law_by_exp(t,resonancias[r])
+        # f2+= c1*lambdaexp_sum(t,np.abs(e[r]))
+    fx += power_law_by_exp(t,resonancias[r])
+    # f2+= c1*lambdaexp_sum(t,np.abs(e[r]))
+    
+# norm = np.sqrt(c1**2+(points-1))
+fx = np.abs(fx)#/norm#/18*4
+
+
 # PEDIR LIMITES DE AJUSTE AL USUARIO
 # tipo = 'power law'
 # print('\n\n%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
@@ -404,8 +421,8 @@ fx = np.abs(fx)/18*4
 # if input_lsup_plaw!='':
 #     lsup_plaw = int(input_lsup_plaw)+1
 
-linf_plaw=20
-lsup_plaw=40
+linf_plaw=5
+lsup_plaw=len(t)-19#linf_plaw+5#len(t)
 linf = linf_plaw
 lsup = lsup_plaw
 tamanio = lsup-linf
@@ -417,15 +434,79 @@ SEb,SEm = np.sqrt(np.diag(pcov))
 plt.figure(figsize=(10,10))
 plt.title(f'cant de resonancias = {points}. Fishman')
 plt.plot(t, np.abs(fx), '.-', label=r'$O_1$')
-plt.plot(t[1:], np.exp(m*np.log(t[1:])+b), '-r', lw=1.5, label=f'slope = {m:.2f}'+r'$\pm$'+f'{SEm:.2f}', alpha=0.6)
-plt.fill_between(x[linf:lsup],0*np.ones(tamanio),1.3*np.ones(tamanio), alpha=0.3)
+plt.plot(t, np.abs(f2), '.-', label=r'$f_2$')
+# plt.plot(t[1:], np.exp(m*np.log(t[1:])+b), '-r', lw=1.5, label=f'slope = {m:.2f}'+r'$\pm$'+f'{SEm:.2f}', alpha=0.6)
+# plt.fill_between(t[linf:lsup],0*np.ones(tamanio),1.3*np.ones(tamanio), alpha=0.3)
 # plt.plot(t,np.exp(-1.51*np.log(t)+b))
 plt.xlabel(r'$t$')
 # plt.xlim(theta_min_for_plot,theta_max_for_plot)
-plt.ylabel(r'$\sum_i \exp(-\epsilon_i.t) $')
+plt.ylabel(r'$\sum_i \exp(2\log(\epsilon_i).t) $')
 plt.yscale('log')
-plt.xscale('log')
+# plt.xscale('log')
+plt.ylim(min(np.abs(fx)),max(np.abs(fx)))
 plt.legend(loc='best')
 plt.tight_layout()
 plt.savefig('power_law_by_exponential_Fishman.png', dpi=80)
+#%% pendiente en función de la cantidad de resonancias
+ps = np.arange(5,50,5)
+ms = np.zeros(len(ps)); SEms = np.zeros(len(ps))
 
+for k,points in enumerate(ps):
+    i=0
+    j=0
+    resonancias = np.zeros(points)
+    while i<points and j<len(e):    
+        if np.abs(np.real(e[j]))==np.abs(e[j]):
+            print(e[j])
+            resonancias[i] = 2*np.log(np.abs(e[j]))
+            i+=1
+        j+=1
+
+    # O1
+    c1 = 1
+    fx = 0 
+    # f2 = 0
+    
+    for r in range(len(resonancias)):
+        if r==0:
+            fx+= c1*power_law_by_exp(t,resonancias[r])
+            # f2+= c1*lambdaexp_sum(t,np.abs(e[r]))
+        fx += power_law_by_exp(t,resonancias[r])
+        # f2+= c1*lambdaexp_sum(t,np.abs(e[r]))
+        
+    # norm = np.sqrt(c1**2+(points-1))
+    fx = np.abs(fx)#/norm#/18*4
+    
+    if points <= 10:
+        linf_plaw=6
+        lsup_plaw=linf_plaw+5
+    else: 
+        linf_plaw=2
+        lsup_plaw=-20
+    # PEDIR LIMITES DE AJUSTE AL USUARIO
+    # tipo = 'power law'
+    # print('\n\n%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
+    # print(tipo)
+    # input_linf_plaw = input("Desea cambiar el linf?\nPresione Enter si NO\nIngrese el nuevo valor del límite inferior del ajuste si SI\n:")
+    # if input_linf_plaw!='':
+    #     linf_plaw = int(input_linf_plaw)  
+        
+    # input_lsup_plaw = input("Desea cambiar el lsup?\nPresione Enter si NO\nIngrese el nuevo valor del límite superior del ajuste si SI\n:")
+    # if input_lsup_plaw!='':
+    #     lsup_plaw = int(input_lsup_plaw)+1
+
+    # tamanio = lsup_plaw-linf_plaw
+
+    pest,pcov = ajuste_curve_fit(t,np.abs(fx),linf_plaw,lsup_plaw)
+    b, m = pest
+    SEb,SEm = np.sqrt(np.diag(pcov))
+    
+    ms[k] = m
+    SEms[k] = SEm
+
+plt.figure(figsize=(12,8))
+plt.errorbar(ps, ms, SEms)
+plt.xlabel('cant. resonancias en eje real')
+plt.ylabel(r'$m$')
+plt.tight_layout()
+plt.savefig('m_vs_cant_res_reales_Fishman.png',dpi=80)
