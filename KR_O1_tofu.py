@@ -92,9 +92,19 @@ def O1_numpy_Tinf(A, B_t):
     return O1
 
 @jit(nopython=True, parallel=True, fastmath = True)
+def O2_numpy_Tinf(A, B_t):
+    O2 = np.trace(B_t@B_t@A@A)
+    return O2
+
+@jit(nopython=True, parallel=True, fastmath = True)
 def O1_numpy(phi, A, B_t):
     O1 = np.trace(B_t@phi@A@B_t@A)
     return O1
+
+@jit(nopython=True, parallel=True, fastmath = True)
+def O2_numpy(phi, A, B_t):
+    O2 = np.trace(B_t@B_t@phi@A@A)
+    return O2
 
 @jit(nopython=True, parallel=True, fastmath = True)
 def C2_numpy_Tinf(A, B_t):
@@ -157,16 +167,16 @@ def diagU_r(U_sub):
     r_normed = r_chaometer(fases, plotadjusted=True) 
     return r_normed
 
-def O1_Evolution_FFT_numpy(time_lim, N, Ks, A, B, op = 'X', r=True,phi=[]):
+def four_times_C_Evolution_FFT_numpy(time_lim, N, Ks, A, B, op = 'X', r=True,phi=[]):
        
     start_time = time() 
     
-    O1_Ks = np.zeros((len(Ks), time_lim), dtype=np.complex_)#[] # OTOC for each Ks
+    O1_Ks = np.zeros((len(Ks), time_lim), dtype=np.complex_); O2_Ks = np.zeros((len(Ks), time_lim), dtype=np.complex_)#[] # OTOC for each Ks
     if r:
         r_Ks = np.zeros((len(Ks)))
     for j, K in tqdm(enumerate(Ks), desc='Primary loop'):
         
-        O1 = np.zeros((time_lim), dtype=np.complex_)#[]
+        O1 = np.zeros((time_lim), dtype=np.complex_); O2 = np.zeros((time_lim), dtype=np.complex_)#[]
         
         # Distinct evolution for each operator X or P
         U = UU(K, N, op)
@@ -185,21 +195,24 @@ def O1_Evolution_FFT_numpy(time_lim, N, Ks, A, B, op = 'X', r=True,phi=[]):
                 B_t = Evolucion_numpy(B_t, U, Udag)# U*B_t*U.dag()
             
             if len(phi)==0:
-                C_t = O1_numpy_Tinf(A, B_t)
+                C1 = O1_numpy_Tinf(A, B_t)
+                C2 = O2_numpy_Tinf(A, B_t)
                 state = '_Tinf_state'
             else:
-                C_t = O1_numpy(phi, A, B_t)
+                C1 = O1_numpy(phi, A, B_t)
+                C2 = O2_numpy(phi, A, B_t)
                 state = '_phi_state'
-            O1[i] = C_t#OTOC.append(np.abs(C_t.data.toarray()))
-
+            O1[i] = C1#OTOC.append(np.abs(C_t.data.toarray()))
+            O2[i] = C2
         O1_Ks[j,:] = O1
+        O2_Ks[j,:] = O2
         if r:
             r_Ks[j] = r_normed
     print(f"\nTOTAL --- {time() - start_time} seconds ---" )
     flag = '4pC_FFT_with'+state
     if r:
-        return [O1_Ks, r_Ks, flag]
-    return [O1_Ks, flag]
+        return [O1_Ks, O2_Ks, r_Ks, flag]
+    return [O1_Ks, O2_Ks, flag]
 
 def eigenvec_j_to_qp(eigenvector, mapa='normal'):
     N = len(eigenvector)
@@ -211,22 +224,84 @@ def eigenvec_j_to_qp(eigenvector, mapa='normal'):
         # print(int(q*Nx),int(p*Nx))
         eig_res[int(q*Nx),int(p*Nx)] = eigenvector[j]
     return eig_res
-
-#%% simulation
-
+#%% simulation C2
 opA = 'X'
 opB = 'P'
 
 operatorss = 'A'+opA+'_B'+opB
 
-# Define K values for the simulation
+Kpaso = 0#1/5
+Ks = [17]#np.arange(15,20.1,Kpaso)
 
-# Kspelado = np.array([0.5])#(np.arange(0.3, 0.51, 0.2))#
+Ns = [15000]#np.arange(5000,20000,00)#[1000,2000,3000,4000,5000]
 
-Kpaso = 0#1/4
-Ks = [6]#np.arange(3,10,Kpaso)##np.array([2, 5, 8, 12, 15, 17, 19.74])#Kspelado*(4*np.pi**2) # K values np.array([Kpelado])
+# for n,N in enumerate(Ns):
+    
+    
+#     # Define basis size        
+#     N = int(N)
+    
+#     # Define position and momentum values in the torus
+#     qs = np.arange(0, N) #take qs in [0;N) with qs integer
+    
+#     t0 = time()
+#     # Define Schwinger operators
+#     Us = fU(N, qs)
+#     Vs = fV(N)
+        
+#     # # # Define momentum and position operatorsÇ
+#     P = (Vs - Vs.dag())/(2j)
+#     X = (Us - Us.dag())/(2j)
 
-Ns = [10000]#np.arange(1,9)*1e3
+#     t1 = time()
+#     print(f'Tiempo operadores: {t1-t0}')
+    
+#     # Select operators for the out-of-time correlators
+    
+#     A = X.data.toarray()
+#     B = P.data.toarray()
+    
+    
+#     # Define pure state
+#     t2 = time()
+#     # sigma = 1/(2*np.pi*N)/10000
+#     # state0 = gaussian_state(int(N/2), 0, sigma)
+#     # state0 = gaussian_state(int(N/2), 0, sigma, ket=True)
+    
+#     # numpy states
+#     # n0 = 0
+#     # state0_numpy = gaussian_state_numpy(int(N/2), n0, sigma)
+#     # state0_numpy = gaussian_state_numpy(int(N/2), 0, sigma, ket=True)
+#     t3 = time()
+#     print(f'Tiempo estado: {t3-t2}')
+#     # Define time array
+#     time_lim = int(5e1+1) # number of kicks
+    
+#     phi = []
+        
+#     # ### compute OTOC with O1 and O2 in the "Heisenberg picture"
+#     C2_Ks, flag = C2_Evolution_FFT_numpy_Tinf(time_lim, N, Ks, A, B)
+    
+#     # # define file name
+    
+#     file = flag+f'_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_basis_size{N}_time_lim{time_lim}'+operatorss+'.npz'#+'_evolucion_al_reves' _centro{n0}
+#     np.savez(file, C2_Ks=C2_Ks, Ks=Ks)
+
+#%% simulation O1
+
+# opA = 'X'
+# opB = 'P'
+
+# operatorss = 'A'+opA+'_B'+opB
+
+# # Define K values for the simulation
+
+# # Kspelado = np.array([0.5])#(np.arange(0.3, 0.51, 0.2))#
+
+# Kpaso = 1/5
+# Ks = np.arange(0,20.1,Kpaso)##np.array([2, 5, 8, 12, 15, 17, 19.74])#Kspelado*(4*np.pi**2) # K values np.array([Kpelado])
+
+# Ns = [5000]#np.arange(1,9)*1e3
 
 for n,N in enumerate(Ns):
     
@@ -296,85 +371,143 @@ for n,N in enumerate(Ns):
     modif = ''#'_sust_evec0'
     
     # ### compute OTOC with O1 and O2 in the "Heisenberg picture"
-    O1_Ks, r_Ks, flag = O1_Evolution_FFT_numpy(time_lim, N, Ks, A, B, op ='X', r=True, phi=phi)
+    O1_Ks, O2_Ks, r_Ks, flag = four_times_C_Evolution_FFT_numpy(time_lim, N, Ks, A, B, op ='X', r=True, phi=phi)
     
     # O1 = np.abs(O1_Ks)
     # # define file name
     
     file = flag+f'_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_basis_size{N}_time_lim{time_lim}'+operatorss+modif+'.npz'#+'_evolucion_al_reves' _centro{n0}
-    np.savez(file, O1=O1_Ks, r_Ks=r_Ks, Ks=Ks)
-#%% plot O1 vs t para varios N
+    np.savez(file, O1=O1_Ks, O2=O2_Ks, r_Ks=r_Ks, Ks=Ks)
+#%% plot O1, O2 y C(t) vs t
+   
 
+# O1 = np.abs(O1_Ks[0])/N
+# O2 = np.abs(O2_Ks[0])/N
+# C_t = -2*(O1-O2)
 
-markers = ['o','v','^','>','<','8','s','p','*']
+# times = np.arange(0,time_lim)
 
-fit = np.linspace(0,1,len(Ns))
-cmap = mpl.cm.get_cmap('viridis')
-color_gradients = cmap(fit)  
+# plt.figure(figsize=(16,8))
+# plt.plot(times, O1, '.-', ms=10, lw=1.5, label=f'N={N}')
+# plt.ylabel(r'$O_1$')
+# plt.xlabel(r'$t$')
+# plt.xticks(times[::2])
+# plt.yscale('log')
+# # plt.ylim(1e-7,1.1)
+# # plt.xlim(-0.01,21)
+# plt.grid()
+# # plt.legend(loc = 'best')
+# plt.savefig('O1_vs_t_Ns.png')
 
-K = Ks[0]
+# plt.figure(figsize=(16,8))
+# plt.plot(times, O2, '.-', ms=10, lw=1.5, label=f'N={N}')
+# plt.ylabel(r'$O_2$')
+# plt.xlabel(r'$t$')
+# plt.xticks(times[::2])
+# plt.yscale('log')
+# # plt.ylim(1e-7,1.1)
+# # plt.xlim(-0.01,21)
+# plt.grid()
+# # plt.legend(loc = 'best')
+# plt.savefig('O2_vs_t_Ns.png')
 
-plt.figure(figsize=(16,8))
-plt.title(f'A={opA}, B={opB}')
+# plt.figure(figsize=(16,8))
+# plt.plot(times, C_t, '.-', ms=10, lw=1.5, label=f'N={N}')
+# plt.ylabel(r'$C(t)$')
+# plt.xlabel(r'$t$')
+# plt.xticks(times[::2])
+# plt.yscale('log')
+# # plt.ylim(1e-7,1.1)
+# # plt.xlim(-0.01,21)
+# plt.grid()
+# # plt.legend(loc = 'best')
+# plt.savefig('Commutator_vs_t_Ns.png')
 
-times = np.arange(0,time_lim)
+# #%% plot O1 vs t para varios N
 
-pendientes = np.zeros((len(Ns)))
+# Ns = [1000,2000,5000,10000]
 
-for n,N in enumerate(Ns):
+# markers = ['o','v','^','>','<','8','s','p','*']
+
+# fit = np.linspace(0,1,len(Ns))
+# cmap = mpl.cm.get_cmap('viridis')
+# color_gradients = cmap(fit)  
+
+# K = 6#Ks[0]
+
+# plt.figure(figsize=(12,8))
+# # plt.title(f'A={opA}, B={opB}')
+
+# times = np.arange(0,time_lim)
+
+# pendientes = np.zeros((len(Ns)))
+
+# for n,N in enumerate(Ns):
     
-    # Define basis size        
-    N = int(N)
+#     # Define basis size        
+#     N = int(N)
     
-    file = flag+f'_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_basis_size{N}_time_lim{time_lim}'+operatorss+modif+'.npz'#+'_evolucion_al_reves' _centro{n0}
-    archives = np.load(file)
-    O1_Ks = archives['O1']
+#     file = flag+f'_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_basis_size{N}_time_lim{time_lim}'+operatorss+modif+'.npz'#+'_evolucion_al_reves' _centro{n0}
+#     archives = np.load(file)
+#     O1_Ks = archives['O1']
        
 
-    y = np.abs(O1_Ks[0])/N
+#     y = np.abs(O1_Ks[0])/N*4
 
-    x = times
-    
-    # oo = O1s[0] - resonancias[k]**(2*x[0])
-    
-    linf=3
-    lsup=7
-    xt = x[linf:lsup].reshape(-1,1)
-    yt = np.log10(y[linf:lsup])
-    
-    regresion_lineal = LinearRegression() # creamos una instancia de LinearRegression
-    
-    regresion_lineal.fit(xt, yt) 
-    # vemos los parámetros que ha estimado la regresión lineal
-    m = regresion_lineal.coef_
-    b = regresion_lineal.intercept_
-    
-    pend = np.sqrt(10**m[0])
-    pendientes[n] = pend
-    print(f'pendiente = {pend}')
+#     x = times#/np.log(N)
     
     
-    plt.plot(x, 10**(m*x+b), '-', color=color_gradients[n], lw=1.5, label=f'{np.sqrt(10**m[0]):.3f}**(2*t) ', alpha=0.6)
-    plt.plot(times, y, '.-', ms=10, lw=1.5, label=f'N={N}',  color=color_gradients[n])
-plt.ylabel(r'$O_1$')
-plt.xlabel(r'$t$')
-plt.xticks(times)
-plt.yscale('log')
-plt.ylim(1e-7,1.1)
-plt.xlim(-0.01,21)
-plt.grid()
-plt.legend(loc = 'best')
-plt.savefig('O1_vs_t_Ns.png')
+#     # oo = O1s[0] - resonancias[k]**(2*x[0])
+    
+#     # if N < 5000:
+#     linf=3+n
+#     lsup=7+n
+#     # else: 
+#     #     linf=6
+#     #     lsup=10
+#     xt = x[linf:lsup].reshape(-1,1)
+#     yt = np.log10(y[linf:lsup])
+    
+#     regresion_lineal = LinearRegression() # creamos una instancia de LinearRegression
+    
+#     regresion_lineal.fit(xt, yt) 
+#     # vemos los parámetros que ha estimado la regresión lineal
+#     m = regresion_lineal.coef_
+#     b = regresion_lineal.intercept_
+    
+#     pend = np.sqrt(10**m[0])
+#     pendientes[n] = pend
+#     print(f'pendiente = {pend}')
+    
+    
+#     # plt.plot(x[linf:lsup+1]+4, 10**(m*x[linf:lsup+1]+b), '-', color=color_gradients[n], lw=1.5, alpha=0.8)#, label=f'{np.sqrt(10**m[0]):.3f}**(2*t) '
+#     plt.plot(times-np.log(N), y, '.-', ms=8, lw=2.5, label=f'D={N}',  color=color_gradients[n])
+#     # plt.yaxis.set_minor_locator(locmin)
+#     # plt.yaxis.set_minor_locator(mpl.ticker.LogLocator(numticks=9, subs="auto"))
+# plt.ylabel(r'$O_1$')
+# plt.xlabel(r'$t-\log(D)$')
+# # plt.xticks(times[::2])
+# plt.yscale('log')
+# # locmin = matplotlib.ticker.LogLocator(base=10.0, subs=(0.001,0.002,0.003,0.004,0.005,0.006,0.007,0.008,0.009, 0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09, 0.1,0.2,0.4,0.6,0.8,1,2,4,6,8,10 )) 
+# # plt.set_minor_locator(locmin)
+# # plt.set_minor_locator(mpl.ticker.LogLocator(numticks=9, subs="auto"))
 
-#%% plot pendientes vs N
-plt.figure(figsize=(16,8))
-plt.plot(Ns, pendientes, '.-', ms=10, lw=1.5)
-plt.ylabel(r'$pendientes$')
-plt.xlabel(r'$N$')
-plt.xticks(times)
-plt.xscale('log')
-# plt.ylim(1e-7,1.1)
-# plt.xlim(-0.01,21)
-plt.grid()
-# plt.legend(loc = 'best')
-plt.savefig('pend_vs_N.png')
+# plt.ylim(1e-5,1.3)
+# plt.xlim(-10.01,40)
+# # plt.grid()
+# plt.tight_layout()
+# plt.legend(loc = 'best', framealpha=0.1, fontsize=24)
+# plt.savefig('O1_vs_t_Ns.pdf', dpi=100)
+
+# # #%% plot pendientes vs N
+# # plt.figure(figsize=(16,8))
+# # plt.plot(Ns, pendientes, '.-', ms=10, lw=1.5)
+# # plt.ylabel(r'$pendientes$')
+# # plt.xlabel(r'$N$')
+# # plt.xticks(times[::2])
+# # plt.xscale('log')
+# # # plt.ylim(1e-7,1.1)
+# # # plt.xlim(-0.01,21)
+# # plt.grid()
+# # # plt.legend(loc = 'best')
+# # plt.savefig('pend_vs_N.png')
