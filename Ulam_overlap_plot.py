@@ -430,6 +430,20 @@ def Ulam_one_trayectory(N,Nx,paso,Nc,K,mapa,symmetry=True):
     # print(cont/Nc)
     return S
 
+@jit
+def argoverlap(overlaps,tol=5e-2):
+    minover = np.min(overlaps)
+    cont = 0
+    i = 1
+    while cont==0 and i<len(overlaps):
+        dif = overlaps[i]-minover
+        if dif<tol:
+            argover = i
+            cont = 1
+        i+=1
+    return argover
+    
+
 import matplotlib as mpl
 # import seaborn as sb
 from sklearn.linear_model import LinearRegression #Regresión Lineal con scikit-learn
@@ -492,44 +506,47 @@ colorlist=[plt.cm.brg(i) for i in np.linspace(0, 1, 6)]
 
 #%% defino parametros variando N
 
-Ns = np.arange(55,63) #np.arange(124,128,2)#np.concatenate((np.arange(20,71,1),np.arange(120,131,2)))#2**np.arange(5,8)
-es = [1/2**8]#0.00390625]#1/2**np.arange(1,3,2)*110 # abs
-resonancias = np.zeros((len(Ns),len(es)))
+# Ns = np.arange(55,83) #np.arange(124,128,2)#np.concatenate((np.arange(20,71,1),np.arange(120,131,2)))#2**np.arange(5,8)
+# es = [1/2**8]#0.00390625]#1/2**np.arange(1,3,2)*110 # abs
+# resonancias = np.zeros((len(Ns),len(es)))
         
-mapa = 'normal'#'absortion'#'dissipation'#'normal'#'cat'#'Harper'#
-method = 'Ulam'#'one_trayectory'#
-eta = 0.3
-a = 2
-cx = 1
+# mapa = 'normal'#'absortion'#'dissipation'#'normal'#'cat'#'Harper'#
+# method = 'Ulam'#'one_trayectory'#
+# eta = 0.3
+# a = 2
+# cx = 1
 
-K = 6
-Nc = int(1e3)
+# K = 19
+# Nc = int(1e3)
 
-#%% criterio del overlap
-ri=0
-e_arr = np.zeros((len(Ns)), dtype=np.complex_)
-indexes = np.zeros((len(Ns)))
-for ni in range(len(Ns)):
+#%% Mirando overlap vs autoestado aplico el criterio para varios Ns
+# ri=0
+# e_arr = np.zeros((len(Ns)), dtype=np.complex_); e_min = np.zeros((len(Ns)), dtype=np.complex_)
+# indexes = np.zeros((len(Ns))); ind_min = np.zeros((len(Ns)))
+# for ni in range(len(Ns)):
     
-    Neff = Ns[ni]
-    ruido = es[0]
-    flag = f'Ulam_approximation_method{method}_mapa{mapa}_Sij_eigenvals_N{Neff}_ruido_abs{ruido}_grilla{cx}N_K{K:.6f}_Nc{Nc}'
-    archives = np.load(flag+'.npz')
-    e = archives['e']
-    evec = archives['evec']
+#     Neff = Ns[ni]
+#     ruido = es[0]
+#     flag = f'Ulam_approximation_method{method}_mapa{mapa}_Sij_eigenvals_N{Neff}_ruido_abs{ruido}_grilla{cx}N_K{K:.6f}_Nc{Nc}'
+#     archives = np.load(flag+'.npz')
+#     e = archives['e']
+#     evec = archives['evec']
     
-    e1 = np.abs(evec[:,1])
-    overlaps=np.zeros((evec.shape[1]))
-    for i in range(evec.shape[1]):
-        ei = np.abs(evec[:,i])
-        overlap = np.vdot(e1,ei)**2
-        # print(overlap)
-        overlaps[i] = overlap
+#     e1 = np.abs(evec[:,1])
+#     overlaps=np.zeros((evec.shape[1]))
+#     for i in range(evec.shape[1]):
+#         ei = np.abs(evec[:,i])
+#         overlap = np.vdot(e1,ei)**2
+#         # print(overlap)
+#         overlaps[i] = overlap
     
-    e_arr[ni] = e[np.argmin(overlaps)]
-    indexes[ni] = np.argmin(overlaps)
+#     e_arr[ni] = e[argoverlap(overlaps)]
+#     indexes[ni] = argoverlap(overlaps)
     
-    # if ni==5:
+#     e_min[ni] = e[np.argmin(overlaps)]
+#     ind_min[ni] = np.argmin(overlaps)
+    
+    # if ni==len(Ns)-1 -1:
     #     plt.figure(figsize=(10,6))
     #     plt.title(f'Criterio del overlap. N={Ns[ni]}, K={K}')
     #     plt.plot(np.arange(evec.shape[1]), overlaps, 'r.')
@@ -542,94 +559,118 @@ for ni in range(len(Ns)):
     #     plt.show()
     #     plt.savefig(f'overlaps_evec'+flag+'.png', dpi=80)
 #%% convergence: e(overlap) vs N
-xN = 1/Ns
-y_train = np.abs(e_arr)
+# xN = 1/Ns
+# y_train = np.abs(e_arr)
 
-# lista_df = []
-# for ni in range(len(Ns)):
-#     lista_df.append([np.real(e_arr[ni]), np.imag(e_arr[ni]), np.abs(e_arr[ni]), indexes[ni], K,Ns[ni]])#
+# plt.figure(figsize=(10,6))
+# # lista_df = []
+# # for ni in range(len(Ns)):
+# #     lista_df.append([np.real(e_arr[ni]), np.imag(e_arr[ni]), np.abs(e_arr[ni]), indexes[ni], K,Ns[ni]])#
 
-# df = pd.DataFrame(lista_df,columns=['Real e', 'Imag e', 'Abs e', 'e index', 'K','N'])#
+# # df = pd.DataFrame(lista_df,columns=['Real e', 'Imag e', 'Abs e', 'e index', 'K','N'])#
 
-modelo = LinearRegression()
-modelo.fit(X = xN.reshape(-1, 1), y = y_train)
+# modelo = LinearRegression()
+# modelo.fit(X = xN.reshape(-1, 1), y = y_train)
 
-print("Intercept:", modelo.intercept_)
-# print("Coeficiente:", list(zip(xN.columns, modelo.coef_.flatten(), )))
-# print("Coeficiente de determinación R^2:", modelo.score(xN, y_train))
+# print("Intercept:", modelo.intercept_)
+# # print("Coeficiente:", list(zip(xN.columns, modelo.coef_.flatten(), )))
+# # print("Coeficiente de determinación R^2:", modelo.score(xN, y_train))
 
-# Podemos predecir usando el modelo
-dom = np.linspace(0,max(xN),1000)
-y_pred = modelo.predict(dom.reshape(-1,1))
+# # Podemos predecir usando el modelo
+# dom = np.linspace(0,max(xN),1000)
+# y_pred = modelo.predict(dom.reshape(-1,1))
+# plt.plot(dom, y_pred, 'b-', lw=2, alpha=0.8, label=r'$\alpha_{fit}=$'+f'{modelo.intercept_:.3f}')
+
+# alfa_O1 = 0.5928110741381651# para K = 19 #0.583995154734334# para K = 12# 0.6976519252861808 # para K = 7 #0.7523697951687548# para K=6 #
+
+# modelo = LinearRegression()
+# modelo.fit(X = xN.reshape(-1, 1), y = np.abs(e_min))
+
+# print("Intercept:", modelo.intercept_)
+# # print("Coeficiente:", list(zip(xN.columns, modelo.coef_.flatten(), )))
+# # print("Coeficiente de determinación R^2:", modelo.score(xN, y_train))
+
+# # Podemos predecir usando el modelo
+# dom = np.linspace(0,max(xN),1000)
+# y_min = modelo.predict(dom.reshape(-1,1))
+
+# plt.plot(dom, y_min, 'g-', lw=2, alpha=0.8, label=r'$\alpha_{fit}=$'+f'{modelo.intercept_:.3f}')
+
+# # plt.title(r'$\alpha_{O_1}$')
+# plt.plot(xN, y_train, 'r.-', label='Ulam $1^{er}$')
+# plt.plot(xN, np.abs(e_min), 'g.-', label='Ulam $\min$', alpha=0.6)
+
+# plt.hlines(alfa_O1, 0, max(xN), color='black', alpha=0.8, label=r'$\alpha_{O_1}=$'+f'{alfa_O1:.3f}')
+
+# ni=0
+# for xitem,yitem in np.nditer([xN,y_train]):
+#         etiqueta = f"{indexes[ni]:.0f}"
+#         plt.annotate(etiqueta, (xitem,yitem), textcoords="offset points",xytext=(0,10),ha="center", fontsize=8)
+#         ni+=1
+
+# # plt.xticks(np.arange(evec.shape[1]), rotation=45, fontsize=12)
+# plt.ylabel(r'$|\epsilon|$')
+# plt.xlabel(r'$N^{-1}$')
+# # plt.grid(True)
+# plt.legend(loc='best')
+# plt.tight_layout()
+# plt.show()
+# plt.savefig(f'Ulam_vs_N'+flag+'.png', dpi=80)
+# #%% grafico un solo autoestado para N = Ns[ni] fijo
+# import os
+# import imageio
 
 
-plt.figure(figsize=(10,6))
-plt.plot(xN, y_train, 'r.-', label='Ulam')
-plt.plot(dom, y_pred, 'b-', lw=2, alpha=0.8, label='linear fit')
-plt.hlines(0.752, 0, max(xN), color='black', alpha=0.8, label=r'$\alpha_{O_1}$')
 
-ni=0
-for xitem,yitem in np.nditer([xN,y_train]):
-        etiqueta = f"{indexes[ni]:.0f}"
-        plt.annotate(etiqueta, (xitem,yitem), textcoords="offset points",xytext=(0,10),ha="center", fontsize=8)
-        ni+=1
+# ni = len(Ns)-1 -1
 
-# plt.xticks(np.arange(evec.shape[1]), rotation=45, fontsize=12)
-plt.ylabel(r'$|\epsilon|$')
-plt.xlabel(r'$N^{-1}$')
-# plt.grid(True)
-plt.legend(loc='best')
-plt.tight_layout()
-plt.show()
-plt.savefig(f'Ulam_vs_N'+flag+'.png', dpi=80)
-#%% import os
-import imageio
-ni = 3
-
-Neff = Ns[ni]
-ruido = es[0]
-flag = f'Ulam_approximation_method{method}_mapa{mapa}_Sij_eigenvals_N{Neff}_ruido_abs{ruido}_grilla{cx}N_K{K:.0f}_Nc{Nc}'
-# flag = 'Ulam_approximation_methodUlam_mapanormal_Sij_eigenvals_N110_ruido0.00390625_grilla1N_K7_Nc1000'
-archives = np.load(flag+'.npz')
-e = archives['e']
-evec = archives['evec']
-# e = np.abs(e)
-# evec=evec[:,e.argsort()[::-1]]
-# e = np.sort(e)[::-1]
-# ies = [1,9]
-# guardo los autoestados 
-# ni = 0
-ri = 0
-for i in range(evec.shape[1]):#ies:#
-    if i == 36:
-        hus = np.abs(eigenvec_j_to_qp(evec[:,i]))#**2
-        plt.figure(figsize=(16,8))
-        plt.title(f'Standard Map. N={Ns[ni]}, e={es[ri]:.0e}, K={K}, i={i}, eval={np.abs(e[i]):.3f}')
-        sns.heatmap(hus)
-        plt.tight_layout()
-        plt.savefig(f'autoestado_n{i}'+flag+'.png', dpi=80)
-        plt.close()
+# Neff = Ns[ni]
+# ruido = es[0]
+# flag = f'Ulam_approximation_method{method}_mapa{mapa}_Sij_eigenvals_N{Neff}_ruido_abs{ruido}_grilla{cx}N_K{K:.6f}_Nc{Nc}'
+# # flag = 'Ulam_approximation_methodUlam_mapanormal_Sij_eigenvals_N110_ruido0.00390625_grilla1N_K7_Nc1000'
+# archives = np.load(flag+'.npz')
+# e = archives['e']
+# evec = archives['evec']
+# # e = np.abs(e)
+# # evec=evec[:,e.argsort()[::-1]]
+# # e = np.sort(e)[::-1]
+# # ies = [1,9]
+# # guardo los autoestados 
+# # ni = 0
+# ri = 0
+# for i in range(evec.shape[1]):#ies:#
+#     if i == 9:
+#         hus = np.abs(eigenvec_j_to_qp(evec[:,i]))#**2
+#         plt.figure(figsize=(16,8))
+#         plt.title(f'Standard Map. N={Ns[ni]}, e={es[ri]:.0e}, K={K}, i={i}, eval={np.abs(e[i]):.3f}')
+#         sns.heatmap(hus)
+#         plt.tight_layout()
+#         plt.savefig(f'autoestado_n{i}'+flag+'.png', dpi=80)
+        # plt.close()
 #%% #%% plot eigenstate i=1
-for ki in range(len(Ks)):
-    K = Ks[ki]
-    flag = f'Ulam_approximation_method{method}_mapa{mapa}_Sij_eigenvals_N{Neff}_ruido_abs{ruido}_grilla{cx}N_K{K:.6f}_Nc{Nc}'
+# Ks = [19]
+# ni=-1
+# N = Ns[ni]
+# for ki in range(len(Ks)):
+#     K = Ks[ki]
+#     flag = f'Ulam_approximation_method{method}_mapa{mapa}_Sij_eigenvals_N{Neff}_ruido_abs{ruido}_grilla{cx}N_K{K:.6f}_Nc{Nc}'
 
-    archives = np.load(flag+'.npz')
-    e = archives['e']
-    evec = archives['evec']
-    if K == 12.5:
-        i = 38
-        hus = np.abs(eigenvec_j_to_qp(evec[:,i]))#**2
-        plt.figure(figsize=(16,8))
-        plt.title(f'Standard Map. N={N}, e={ruido:.0e}, K={K}, i={i}, eval={np.abs(e[i]):.3f}')
-        sns.heatmap(hus)
-        plt.tight_layout()
-        plt.savefig(f'autoestado_n{i}'+flag+'.png', dpi=80)
-        plt.close()
+#     archives = np.load(flag+'.npz')
+#     e = archives['e']
+#     evec = archives['evec']
+#     if K == 19:
+#         i = 1
+#         hus = np.abs(eigenvec_j_to_qp(evec[:,i]))#**2
+#         plt.figure(figsize=(16,8))
+#         plt.title(f'Standard Map. N={N}, e={ruido:.0e}, K={K}, i={i}, eval={np.abs(e[i]):.3f}')
+#         sns.heatmap(hus)
+#         plt.tight_layout()
+#         plt.savefig(f'autoestado_n{i}'+flag+'.png', dpi=80)
+#         plt.close()
 #%% overlap vs K
-Ns = [90,128]
-# Neff = 128
-ruido = 1/2**8#[0.00390625]#1/2**np.arange(1,3,2)*110 # abs
+Ns = [30]
+Neff = Ns[0]
+ruido = [1/(dpi*Neff)]#1/2**8#[0.00390625]#1/2**np.arange(1,3,2)*110 # abs
         
 mapa = 'normal'#'absortion'#'dissipation'#'normal'#'cat'#'Harper'#
 method = 'Ulam'#'one_trayectory'#
@@ -637,10 +678,11 @@ eta = 0.3
 # a = 2
 cx = 1
 
-Kpaso = .25
+Kpaso = .4
 Ks = np.arange(0,20.1,Kpaso)#0.971635406
 
-evals_K = np.zeros((len(Ks), len(Ns))); indexes = np.zeros((len(Ks), len(Ns)))
+evals_K = np.zeros((len(Ks), len(Ns))); evals_min = np.zeros((len(Ks), len(Ns))); evals_1 = np.zeros((len(Ks), len(Ns)));
+indexes = np.zeros((len(Ks), len(Ns))); ind_min = np.zeros((len(Ks), len(Ns))); 
 
 overlap_lim = 5e-3
 Nc = int(1e3)#int(2.688e7)#int(1e8)#
@@ -653,7 +695,7 @@ for ni in range(len(Ns)):
         K = Ks[ki]
         Nx = int(cx*Neff)
         N = Nx**2
-        flag = f'Ulam_approximation_method{method}_mapa{mapa}_Sij_eigenvals_N{Neff}_ruido_abs{ruido}_grilla{cx}N_K{K:.6f}_Nc{Nc}'
+        flag = f'Ulam_approximation_method{method}_mapa{mapa}_Sij_eigenvals_N{Neff}_ruido_abs{ruido[0]}_grilla{cx}N_K{K:.6f}_Nc{Nc}'
     
         archives = np.load(flag+'.npz')
         e = archives['e']
@@ -667,20 +709,16 @@ for ni in range(len(Ns)):
             # print(overlap)
             overlaps[i] = overlap
         
-        cont=0
-        i=1
-        
-        while (cont==0 and i<evec.shape[1]):
-    
-            # print(f'IPR evec{i} = ', IPRs[i])
-            if ((overlaps[i]-min(overlaps))<overlap_lim):# and (IPRs[i]<IPR_treshold):
-                cont=1
-            else:
-                i+=1
+
+        i = argoverlap(overlaps)
+        i_min = np.argmin(overlaps)
         print(Ns[ni], Ks[ki], i, np.abs(e[i]))
+        evals_1[ki,ni] = np.abs(e[1])
         indexes[ki,ni] = i
         evals_K[ki,ni] = np.abs(e[i])
-        i = 0
+        ind_min[ki,ni] = i_min
+        evals_min[ki,ni] = np.abs(e[i_min])
+        i = 0; i_min = 0
 
 #%% corrijo algunos a mano
 # cor_ind = [8, 8.5, 11, 11.5, 14, 14.5, 15.5, 16, 16.5, 17, 17.5, 18, 19.5, 20]
@@ -900,12 +938,14 @@ x = pendientes_archivo[:,0]; y = pendientes_archivo[:,1]
 # x = pendientes_archivo[:,0]; y = pendientes_archivo[:,1]
 plt.figure(figsize=(12,8))
 plt.plot(x,y, '.-', label=r'OTOC $\alpha_{O_1}$ N=5000')
-plt.plot(x2,y2, '.-', label=r'Agam $|\epsilon_1|$'+f' N=90')
-plt.plot(Ks,evals_K[:,0], '.-', label=r'Ulam $|\epsilon_{overlap}|$'+f' N={Ns[0]}')
+# plt.plot(x2,y2, '.-', label=r'Agam $|\epsilon_1|$'+f' N=90')
+plt.plot(Ks,evals_1[:,0], '.-', label=r'Ulam $|\epsilon_{1}|$'+f' N={Ns[0]}')
+plt.plot(Ks,evals_K[:,0], '.-', label=r'Ulam $1^{er}\,|\epsilon_{overlap}|$'+f' N={Ns[0]}')
+plt.plot(Ks,evals_min[:,0], '.-', label=r'Ulam $\min |\epsilon_{overlap}|$'+f' N={Ns[0]}')
 # plt.plot(Ks,evals_K[:,1], '.-', label=r'$|\epsilon_{overlap}|$'+f'N={Ns[1]}')
 plt.xlabel(r'$K$')
 plt.ylabel(r'$|\epsilon|$')#', $\alpha_{O_1}$')
 plt.grid(True)
 plt.legend(loc='best')
 plt.tight_layout()
-plt.savefig(f'Agam_y_overlap_vs_K_N{Ns[0]}_ruido{ruido}.png', dpi=80)
+plt.savefig(f'Agam_y_overlap_vs_K_N{Ns[0]}_ruido{ruido[0]}.pdf', dpi=100)

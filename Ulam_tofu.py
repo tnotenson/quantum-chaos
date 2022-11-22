@@ -121,38 +121,38 @@ def CI(qj,pj,paso):
     # print('CI', q,p)
     return q,p
 
-@jit
-def cae_en_celda(qf,pf,qi,pi,paso):
-    '''
-    Check if (qf,pf) is in cell or not
+# @jit
+# def cae_en_celda(qf,pf,qi,pi,paso):
+#     '''
+#     Check if (qf,pf) is in cell or not
 
-    Parameters
-    ----------
-    qf : float
-        position to check
-    pf : float
-        momentum to check
-    qi : float
-        mininum position of cell
-    pi : float
-        mininum momentum of cell
-    paso : float
-        width of cell. In gral, paso=1/N
+#     Parameters
+#     ----------
+#     qf : float
+#         position to check
+#     pf : float
+#         momentum to check
+#     qi : float
+#         mininum position of cell
+#     pi : float
+#         mininum momentum of cell
+#     paso : float
+#         width of cell. In gral, paso=1/N
 
-    Returns
-    -------
-    cond : bool
-        True if (qf,pf) is in cell. False if not
+#     Returns
+#     -------
+#     cond : bool
+#         True if (qf,pf) is in cell. False if not
 
-    '''
+#     '''
     
-    cond1 = (0<(qf-qi) and (qf-qi)<paso)
-    cond2 = (0<(pf-pi) and (pf-pi)<paso)
+#     cond1 = (0<(qf-qi) and (qf-qi)<paso)
+#     cond2 = (0<(pf-pi) and (pf-pi)<paso)
     
-    cond = (cond1 and cond2)
-    # if cond:
-    #     print('cond1', qf, pf, 'dif', (qf-qi), (pf-pi))
-    return cond
+#     cond = (cond1 and cond2)
+#     # if cond:
+#     #     print('cond1', qf, pf, 'dif', (qf-qi), (pf-pi))
+#     return cond
 
 @jit
 def CI_and_evolution(qj,pj,paso,K,mapa='normal'):
@@ -196,11 +196,17 @@ def CI_and_evolution(qj,pj,paso,K,mapa='normal'):
     return qf, pf, nqi, npi
 
 @jit
-def gaussian_kernel(q,p,paso,ruido,modulo=1):
-    # rv = norm(0, ruido*paso)
-    qf = (q + np.random.normal(0,ruido))%modulo
-    pf = (p + np.random.normal(0,ruido))%modulo
-    
+def gaussian_kernel(q,p,paso,ruido,modulo=1,axis='both'):
+    if axis=='both':
+        qf = (q + np.random.normal(0,ruido))%modulo
+        pf = (p + np.random.normal(0,ruido))%modulo
+    elif axis=='q':
+        qf = (q + np.random.normal(0,ruido))%modulo
+        pf = p#(p + np.random.normal(0,ruido))%modulo
+    elif axis=='p':
+        qf = q#(q + np.random.normal(0,ruido))%modulo
+        pf = (p + np.random.normal(0,ruido))%modulo
+        
     return qf, pf
 
 @jit
@@ -352,7 +358,7 @@ def qp_from_j(j,Nx,paso,mapa='normal'):
     return qj, pj
 
 @jit
-def Ulam(N,Nx,paso,Nc,K,mapa,ruido=10,modulo=1):
+def Ulam(N,Nx,paso,Nc,K,mapa,ruido=10,modulo=1,axis='q'):
     
     S = np.zeros((N, N), dtype=np.float64)
     
@@ -364,8 +370,8 @@ def Ulam(N,Nx,paso,Nc,K,mapa,ruido=10,modulo=1):
         for nj in range(Nc):
             # tomo una CI random dentro de la celda j 
             # y luego evoluciono un paso
-            qf, pf, nqi, npi = CI_and_evolution(qj,pj,paso,K,mapa,ruido)
-            qf, pf = gaussian_kernel(qf, pf, paso, ruido,modulo)
+            qf, pf, nqi, npi = CI_and_evolution(qj,pj,paso,K,mapa)
+            qf, pf = gaussian_kernel(qf, pf, paso, ruido,modulo, axis=axis)
             nqi, npi = n_from_qp(qf, pf, paso,mapa)
             # print('llega')
             i = int(nqi+npi*Nx)
@@ -516,8 +522,8 @@ def get_axis_limits(ax, scalex=.1, scaley=.85):
 
 colorlist=[plt.cm.brg(i) for i in np.linspace(0, 1, 6)]
 #%% simulation Ks
-Neff = 128
-ruido = 1/2**8#[0.00390625]#1/2**np.arange(1,3,2)*110 # abs
+Neff = 60
+ruido = 1/(2*np.pi*Neff)#1/2**8#[0.00390625]#1/2**np.arange(1,3,2)*110 # abs
         
 mapa = 'normal'#'absortion'#'dissipation'#'normal'#'cat'#'Harper'#
 method = 'Ulam'#'one_trayectory'#
@@ -525,8 +531,11 @@ eta = 0.3
 a = 2
 cx = 1
 
-Kpaso = 0.25
-Ks = np.arange(18,20.1,Kpaso)#0.971635406
+axis = 'both'
+modulo = 1
+
+Kpaso = 0.8
+Ks = np.arange(0,20.1,Kpaso)#0.971635406
 
 Nc = int(1e3)#int(2.688e7)#int(1e8)#
 #
@@ -544,7 +553,7 @@ for ki in tqdm(range(len(Ks)), desc='loop K'):
         if method=='one_trayectory':
             S = Ulam_one_trayectory(N, Nx, paso, Nc, K, mapa)    
         elif method=='Ulam':
-            S = Ulam(N, Nx, paso, Nc, K, mapa, ruido)
+            S = Ulam(N=N, Nx=Nx, paso=paso, Nc=Nc, K=K, mapa=mapa, ruido=ruido, modulo=modulo, axis=axis)
         
     elif mapa=='dissipation':
         S = Ulam_one_trayectory(N, Nx, paso, Nc, K, mapa)
@@ -557,6 +566,64 @@ for ki in tqdm(range(len(Ks)), desc='loop K'):
     e = e[eabs.argsort()][::-1]
     t1=time()
     print(f'\nDiagonalización: {t1-t0} seg')
-    flag = f'Ulam_approximation_method{method}_mapa{mapa}_Sij_eigenvals_N{Neff}_ruido_abs{ruido}_grilla{cx}N_K{K:1f}_Nc{Nc}'
+    flag = f'Ulam_approximation_method{method}_mapa{mapa}_Sij_eigenvals_N{Neff}_ruido_abs{ruido}_axis{axis}_grilla{cx}N_K{K:1f}_Nc{Nc}'
     np.savez(flag+'.npz', e=e, evec=evec[:,:k])
     del S; del e; del evec;
+#%% simulation Ns
+# # Neff = 128
+# Ns = np.arange(55,91)
+# ruido = 1/2**8#[0.00390625]#1/2**np.arange(1,3,2)*110 # abs
+        
+# mapa = 'normal'#'absortion'#'dissipation'#'normal'#'cat'#'Harper'#
+# method = 'Ulam'#'one_trayectory'#
+# cx = 1
+
+# Kpaso = 0
+# Ks = [19]
+
+# Nc = int(1e3)#int(2.688e7)#int(1e8)#
+# #
+# k = 45
+# for ni in tqdm(range(len(Ns)), desc='loop N'):
+#     Neff = Ns[ni]
+#     Nx = int(cx*Neff)
+#     N = Nx**2
+    
+#     K = Ks[0]
+#     # print(f'N={Neff}d',f'e={ruido}')
+    
+#     paso = 1/Nx
+            
+#     if (mapa=='normal' or mapa=='absortion' or mapa=='cat' or mapa=='Harper'):
+#         if method=='one_trayectory':
+#             S = Ulam_one_trayectory(N, Nx, paso, Nc, K, mapa)    
+#         elif method=='Ulam':
+#             S = Ulam(N=N, Nx=Nx, paso=paso, Nc=Nc, K=K, mapa=mapa, ruido=ruido)
+            
+#     elif mapa=='dissipation':
+#         S = Ulam_one_trayectory(N, Nx, paso, Nc, K, mapa)
+
+#     # diagonalize operator
+#     t0=time()
+#     e, evec = eigs(S, k=k)
+#     eabs = np.abs(e)
+#     evec=evec[:,eabs.argsort()[::-1]]
+#     e = e[eabs.argsort()][::-1]
+#     t1=time()
+#     print(f'\nDiagonalización: {t1-t0} seg')
+#     flag = f'Ulam_approximation_method{method}_mapa{mapa}_Sij_eigenvals_N{Neff}_ruido_abs{ruido}_grilla{cx}N_K{K:1f}_Nc{Nc}'
+#     np.savez(flag+'.npz', e=e, evec=evec[:,:k])
+#     del S; del e; del evec;
+#%%  cambiar nombre de archivos
+# import os
+
+# Ns = np.arange(58,89)
+
+# for ni in range(len(Ns)):
+        
+#     # Absolute path of a file
+#     old_name = f"Ulam_approximation_methodUlam_mapanormal_Sij_eigenvals_N{Ns[ni]}_ruido_abs0.00390625_grilla1N_K18.000000_Nc1000.npz"
+#     new_name = f"Ulam_approximation_methodUlam_mapanormal_Sij_eigenvals_N{Ns[ni]}_ruido_abs0.00390625_grilla1N_K13_Nc1000.npz"
+    
+#     # Renaming the file
+#     os.rename(old_name, new_name)

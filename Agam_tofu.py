@@ -41,7 +41,7 @@ def finite_delta(x,s,cant=3):
 # dom = np.linspace(0,1,100)
 # plt.plot(dom,finite_delta(dom,s=0.01))
 
-def mat_elem_U(xp,yp,x,y,K,forma='comun',*args,**kwargs):
+def mat_elem_U(xp,yp,x,y,K,s,forma='comun',*args,**kwargs):
     '''
     create matrix elements of Perron-Frobenius operator
     
@@ -136,7 +136,7 @@ def eigenvec_j_to_qp(eigenvector, mapa='normal'):
         eig_res[int(Nx*q),int(Nx*p)] = eigenvector[j]
     return eig_res
 
-def Blum_Agam_Perron_Frobenius(*args,**kwargs):
+def Blum_Agam_Perron_Frobenius(N,s,*args,**kwargs):
     '''
     Blum Agam algorithm 
 
@@ -173,11 +173,11 @@ def Blum_Agam_Perron_Frobenius(*args,**kwargs):
 
     '''
     U = np.zeros((N**2,N**2), dtype=np.complex_)
-    for i in tqdm(range(N**2), desc='loop 1 celdas'):
+    for i in range(N**2):#, desc='loop 1 celdas'):
         for j in range(N**2):    
             x,y = qp_from_j(i,N)
             xp,yp = qp_from_j(j,N)
-            U[i,j] = mat_elem_U(xp,yp,x,y,K,forma='alternativa',s=s)
+            U[i,j] = mat_elem_U(xp,yp,x,y,K,s,forma='alternativa')
     # U = U
     t0 = time()
     e, evec = np.linalg.eig(U)
@@ -191,28 +191,48 @@ def Blum_Agam_Perron_Frobenius(*args,**kwargs):
 
 #%% simulation vs parameter
 
-# Kpaso = 20/20
-# Ks = np.arange(18,20.1,Kpaso)
+Kpaso = 1/5
+Ks = np.arange(18,20.1,Kpaso)
 
-cte = 90*0.001
-Npaso = 5
-Ns = np.arange(80,81,Npaso)
-K = 13 
-ss = cte/Ns##np.arange(1,5)*1e-3
+# cte = 90*0.001
+Npaso = 0#5
+Ns = [90]#np.arange(80,81,Npaso)
+# K = 13 
+ss = [0.001]#cte/Ns##np.arange(1,5)*1e-3
 
-for N in tqdm(Ns, desc='N loop'):
+# for N in tqdm(Ns, desc='N loop'):
     
-    # N = Ns[-1]
-    nvec = N**2
+N = Ns[-1]
+nvec = N**2
 
-# for K in Ks:
+for K in tqdm(Ks, desc='K loop'):
     
     es = np.zeros((len(ss),nvec), dtype=np.complex_)
             
-    for num,s in tqdm(enumerate(ss),desc='loop s'):
+    for num,s in enumerate(ss):
           
         es[num,:],_ = Blum_Agam_Perron_Frobenius(N,s,K)
-                
+        print(np.abs(es[0,:3]))
     np.savez(f'Blum_Agam_evals_K{K:.1f}_Nsfijo_N{N}_smin{min(ss):.4f}_smax{max(ss):.4f}.npz', es=es, ss=ss)
     del es; #del ss;
 #%%
+
+es_Agam = np.zeros(len(Ks))
+for i,K in enumerate(Ks):
+        
+    filename = f'Blum_Agam_evals_K{K:.1f}_Nsfijo_N{N}_smin{min(ss):.4f}_smax{max(ss):.4f}'
+    
+    print(filename)
+    
+    archives = np.load(filename+'.npz')
+    ss = archives['ss']
+    es = archives['es']
+    
+    print(es[0][1:2])
+    
+    es_Agam[i] = np.abs(es[0][1])
+    
+    
+    
+    
+    
