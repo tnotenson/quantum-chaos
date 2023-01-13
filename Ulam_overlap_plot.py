@@ -449,32 +449,35 @@ import matplotlib as mpl
 from sklearn.linear_model import LinearRegression #Regresión Lineal con scikit-learn
 plt.rcParams['text.usetex'] = True
 
-font_size=20
-letter_size=22
-label_size=25
-title_font=28
-legend_size=23
+delta = 8
+
+font_size=20+delta
+letter_size=22+delta
+label_size=25+delta
+title_font=28+delta
+legend_size=23+delta
 
 from matplotlib import rc
 rc('font', family='serif', size=font_size)
 rc('text', usetex=True)
 
+delta2 = 4
 
 
-mpl.rcParams['lines.linewidth'] = 2
+mpl.rcParams['lines.linewidth'] = 2+0.25*delta2
 mpl.rcParams['axes.labelsize'] = label_size
 mpl.rcParams['xtick.minor.visible']=True
-mpl.rcParams['xtick.major.size']=6
-mpl.rcParams['xtick.minor.size']=3
-mpl.rcParams['xtick.major.width']=1.4
-mpl.rcParams['xtick.minor.width']=0.9
+mpl.rcParams['xtick.major.size']=6+delta2
+mpl.rcParams['xtick.minor.size']=3+delta2
+mpl.rcParams['xtick.major.width']=1.4+0.5*delta2
+mpl.rcParams['xtick.minor.width']=0.9+0.5*delta2
 mpl.rcParams['xtick.direction']='in'
 
 mpl.rcParams['ytick.minor.visible']=True
-mpl.rcParams['ytick.major.size']=6
-mpl.rcParams['ytick.minor.size']=3
-mpl.rcParams['ytick.major.width']=2.1
-mpl.rcParams['ytick.minor.width']=1.3
+mpl.rcParams['ytick.major.size']=6+delta2
+mpl.rcParams['ytick.minor.size']=3+delta2
+mpl.rcParams['ytick.major.width']=2.1+0.5*delta2
+mpl.rcParams['ytick.minor.width']=1.3+0.5*delta2
 mpl.rcParams['ytick.direction']='in'
 
 mpl.rcParams['ytick.direction']='in'
@@ -678,8 +681,8 @@ eta = 0.3
 # a = 2
 cx = 1
 
-Kpaso = .4
-Ks = np.arange(0,20.1,Kpaso)#0.971635406
+Kpaso = .2
+Ks = np.arange(0.2,20.1,Kpaso)#0.971635406
 
 evals_K = np.zeros((len(Ks), len(Ns))); evals_min = np.zeros((len(Ks), len(Ns))); evals_1 = np.zeros((len(Ks), len(Ns)));
 indexes = np.zeros((len(Ks), len(Ns))); ind_min = np.zeros((len(Ks), len(Ns))); 
@@ -695,7 +698,7 @@ for ni in range(len(Ns)):
         K = Ks[ki]
         Nx = int(cx*Neff)
         N = Nx**2
-        flag = f'Ulam_approximation_method{method}_mapa{mapa}_Sij_eigenvals_N{Neff}_ruido_abs{ruido[0]}_grilla{cx}N_K{K:.6f}_Nc{Nc}'
+        flag = f'Ulam_approximation_method{method}_mapa{mapa}_Sij_eigenvals_N{Neff}_ruido_abs{ruido[0]}_axisboth_grilla{cx}N_K{K:.6f}_Nc{Nc}'
     
         archives = np.load(flag+'.npz')
         e = archives['e']
@@ -736,98 +739,112 @@ for ni in range(len(Ns)):
 #     evals_K[ki] = np.abs(e[1])
 #%% cargo Agam
 
+Ks = np.arange(18,20.1,0.2)
+
+Agam_18_to_20 = np.zeros(len(Ks))
+
+for k in range(len(Ks)):
+    Agam_archive = np.load(f'Blum_Agam_evals_K{Ks[k]:.1f}_Nsfijo_N90_smin0.0010_smax0.0010.npz')
+    es = Agam_archive['es']
+    # ss = Agam_archive['ss']
+    Agam_18_to_20[k] = np.abs(es[0][1])
+    
 Agam_archivo = np.array([[ 0.2       ,  0.99008465,  0.98628311],
-       [ 0.4       ,  0.9898204 ,  0.98239649],
-       [ 0.6       ,  0.98940457,  0.97739039],
-       [ 0.8       ,  0.98881599,  0.97020105],
-       [ 1.        ,  0.98797987,  0.96592535],
-       [ 1.2       ,  0.98679681,  0.96214898],
-       [ 1.4       ,  0.98515938,  0.95564731],
-       [ 1.6       ,  0.98289978,  0.94665441],
-       [ 1.8       ,  0.98036816,  0.93450966],
-       [ 2.        ,  0.97824085,  0.91856504],
-       [ 2.2       ,  0.97570089,  0.90304041],
-       [ 2.4       ,  0.96986259,  0.9030563 ],
-       [ 2.6       ,  0.95957671,  0.90803738],
-       [ 2.8       ,  0.95090726,  0.89610993],
-       [ 3.        ,  0.94905812,  0.86315306],
-       [ 3.2       ,  0.94923273,  0.84326165],
-       [ 3.4       ,  0.94917123,  0.82556552],
-       [ 3.6       ,  0.94789772,  0.80101979],
-       [ 3.8       ,  0.9448457 ,  0.75713859],
-       [ 4.        ,  0.93932105,  0.73652685],
-       [ 4.2       ,  0.93144426,  0.70375668],
-       [ 4.4       ,  0.92260203,  0.67890895],
-       [ 4.6       ,  0.91337322,  0.73849823],
-       [ 4.8       ,  0.90189935,  0.80268764],
-       [ 5.        ,  0.88527977,  0.83408279], 
-       [ 5.2       ,  0.86410547,  0.84218101],
-       [ 5.4       ,  0.84089212,  0.83534343],
-       [ 5.6       ,  0.8177247 ,  0.81470074],
-       [ 5.8       ,  0.79002054,  0.78028657],
-       [ 6.        ,  0.75797302,  0.74335136], 
-       [ 6.        ,  0.75797302,  0.74335136],
-       [ 6.2       ,  0.7323376 ,  0.71146727],
-       [ 6.4       ,  0.72970347,  0.72472119],
-       [ 6.6       ,  0.79296025,  0.78255186],
-       [ 6.8       ,  0.78923485,  0.77275379],
-       [ 7.        ,  0.76113182,  0.7350251 ], 
-       [ 7.2       ,  0.71855546,  0.68011619],
-       [ 7.4       ,  0.66067582,  0.62796231],
-       [ 7.6       ,  0.60957403,  0.60317646],
-       [ 7.8       ,  0.60104454,  0.58552043],
-       [ 8.        ,  0.59118273,  0.5600842 ], 
-       [ 8.2       ,  0.58242286,  0.58242286],
-       [ 8.4       ,  0.57650897,  0.57650897],
-       [ 8.6       ,  0.56337397,  0.56337397],
-       [ 8.8       ,  0.5565611 ,  0.55087264],
-       [ 9.        ,  0.53760805,  0.53760805],
-       [ 9.2       ,  0.63358958,  0.63358958],
-       [ 9.4       ,  0.73156675,  0.73156675],
-       [ 9.6       ,  0.67619662,  0.67619662],
-       [ 9.8       ,  0.59014398,  0.55900365],
-       [10.        ,  0.57820559,  0.52885735],
-       [10.2       ,  0.56588387,  0.50939805],
-       [10.4       ,  0.54596302,  0.47059897],
-       [10.6       ,  0.51881527,  0.45568069],
-       [10.8       ,  0.51156501,  0.45796041],
-       [11.        ,  0.51132091,  0.49758454],
-       [11.2       ,  0.51220442,  0.4996588 ],
-       [11.4       ,  0.47803335,  0.47803335],
-       [11.6       ,  0.47895462,  0.47895462],
-       [11.8       ,  0.48059366,  0.47336772],
-       [12.        ,  0.61720967,  0.6075464 ],
-       [12.2       ,  0.67707983,  0.67364555],
-       [12.4       ,  0.67541944,  0.66408497],
-       [12.6       ,  0.64221332,  0.6203312 ],
-       [12.8       ,  0.65777468,  0.64573523],
-       [13.        ,  0.64829548,  0.61764157],
-       [13.2       ,  0.61397579,  0.5505278 ],
-       [13.4       ,  0.57044458,  0.52129359],
-       [13.6       ,  0.53949803,  0.50775636],
-       [13.8       ,  0.49370899,  0.47434986],
-       [14.        ,  0.45947742,  0.45947742],
-       [14.2       ,  0.46296583,  0.46296583],
-       [14.4       ,  0.45887062,  0.4388266 ],
-       [14.6       ,  0.48520089,  0.426412  ],
-       [14.8       ,  0.49827048,  0.40101597],
-       [15.        ,  0.48354679,  0.38821192],
-       [15.2       ,  0.47140208,  0.42023722],
-       [15.4       ,  0.44895293,  0.4442015 ],
-       [15.6       ,  0.55769646,  0.55769646],
-       [15.8       ,  0.62293468,  0.62293468],
-       [16.        ,  0.56056279,  0.56056279],
-       [16.2       ,  0.49882391,  0.49882391],
-       [16.4       ,  0.46746261,  0.46352421],
-       [16.6       ,  0.45748065,  0.41715617],
-       [16.8       ,  0.46908386,  0.39327775],
-       [17.        ,  0.46646993,  0.39580034],
-       [17.2       ,  0.4611999 ,  0.41720077],
-       [17.4       ,  0.45224197,  0.41820463],
-       [17.6       ,  0.46202086,  0.43950669],
-       [17.8       ,  0.44612345,  0.43252012]])
+        [ 0.4       ,  0.9898204 ,  0.98239649],
+        [ 0.6       ,  0.98940457,  0.97739039],
+        [ 0.8       ,  0.98881599,  0.97020105],
+        [ 1.        ,  0.98797987,  0.96592535],
+        [ 1.2       ,  0.98679681,  0.96214898],
+        [ 1.4       ,  0.98515938,  0.95564731],
+        [ 1.6       ,  0.98289978,  0.94665441],
+        [ 1.8       ,  0.98036816,  0.93450966],
+        [ 2.        ,  0.97824085,  0.91856504],
+        [ 2.2       ,  0.97570089,  0.90304041],
+        [ 2.4       ,  0.96986259,  0.9030563 ],
+        [ 2.6       ,  0.95957671,  0.90803738],
+        [ 2.8       ,  0.95090726,  0.89610993],
+        [ 3.        ,  0.94905812,  0.86315306],
+        [ 3.2       ,  0.94923273,  0.84326165],
+        [ 3.4       ,  0.94917123,  0.82556552],
+        [ 3.6       ,  0.94789772,  0.80101979],
+        [ 3.8       ,  0.9448457 ,  0.75713859],
+        [ 4.        ,  0.93932105,  0.73652685],
+        [ 4.2       ,  0.93144426,  0.70375668],
+        [ 4.4       ,  0.92260203,  0.67890895],
+        [ 4.6       ,  0.91337322,  0.73849823],
+        [ 4.8       ,  0.90189935,  0.80268764],
+        [ 5.        ,  0.88527977,  0.83408279], 
+        [ 5.2       ,  0.86410547,  0.84218101],
+        [ 5.4       ,  0.84089212,  0.83534343],
+        [ 5.6       ,  0.8177247 ,  0.81470074],
+        [ 5.8       ,  0.79002054,  0.78028657],
+        [ 6.        ,  0.75797302,  0.74335136], 
+        [ 6.        ,  0.75797302,  0.74335136],
+        [ 6.2       ,  0.7323376 ,  0.71146727],
+        [ 6.4       ,  0.72970347,  0.72472119],
+        [ 6.6       ,  0.79296025,  0.78255186],
+        [ 6.8       ,  0.78923485,  0.77275379],
+        [ 7.        ,  0.76113182,  0.7350251 ], 
+        [ 7.2       ,  0.71855546,  0.68011619],
+        [ 7.4       ,  0.66067582,  0.62796231],
+        [ 7.6       ,  0.60957403,  0.60317646],
+        [ 7.8       ,  0.60104454,  0.58552043],
+        [ 8.        ,  0.59118273,  0.5600842 ], 
+        [ 8.2       ,  0.58242286,  0.58242286],
+        [ 8.4       ,  0.57650897,  0.57650897],
+        [ 8.6       ,  0.56337397,  0.56337397],
+        [ 8.8       ,  0.5565611 ,  0.55087264],
+        [ 9.        ,  0.53760805,  0.53760805],
+        [ 9.2       ,  0.63358958,  0.63358958],
+        [ 9.4       ,  0.73156675,  0.73156675],
+        [ 9.6       ,  0.67619662,  0.67619662],
+        [ 9.8       ,  0.59014398,  0.55900365],
+        [10.        ,  0.57820559,  0.52885735],
+        [10.2       ,  0.56588387,  0.50939805],
+        [10.4       ,  0.54596302,  0.47059897],
+        [10.6       ,  0.51881527,  0.45568069],
+        [10.8       ,  0.51156501,  0.45796041],
+        [11.        ,  0.51132091,  0.49758454],
+        [11.2       ,  0.51220442,  0.4996588 ],
+        [11.4       ,  0.47803335,  0.47803335],
+        [11.6       ,  0.47895462,  0.47895462],
+        [11.8       ,  0.48059366,  0.47336772],
+        [12.        ,  0.61720967,  0.6075464 ],
+        [12.2       ,  0.67707983,  0.67364555],
+        [12.4       ,  0.67541944,  0.66408497],
+        [12.6       ,  0.64221332,  0.6203312 ],
+        [12.8       ,  0.65777468,  0.64573523],
+        [13.        ,  0.64829548,  0.61764157],
+        [13.2       ,  0.61397579,  0.5505278 ],
+        [13.4       ,  0.57044458,  0.52129359],
+        [13.6       ,  0.53949803,  0.50775636],
+        [13.8       ,  0.49370899,  0.47434986],
+        [14.        ,  0.45947742,  0.45947742],
+        [14.2       ,  0.46296583,  0.46296583],
+        [14.4       ,  0.45887062,  0.4388266 ],
+        [14.6       ,  0.48520089,  0.426412  ],
+        [14.8       ,  0.49827048,  0.40101597],
+        [15.        ,  0.48354679,  0.38821192],
+        [15.2       ,  0.47140208,  0.42023722],
+        [15.4       ,  0.44895293,  0.4442015 ],
+        [15.6       ,  0.55769646,  0.55769646],
+        [15.8       ,  0.62293468,  0.62293468],
+        [16.        ,  0.56056279,  0.56056279],
+        [16.2       ,  0.49882391,  0.49882391],
+        [16.4       ,  0.46746261,  0.46352421],
+        [16.6       ,  0.45748065,  0.41715617],
+        [16.8       ,  0.46908386,  0.39327775],
+        [17.        ,  0.46646993,  0.39580034],
+        [17.2       ,  0.4611999 ,  0.41720077],
+        [17.4       ,  0.45224197,  0.41820463],
+        [17.6       ,  0.46202086,  0.43950669],
+        [17.8       ,  0.44612345,  0.43252012]])
 
 x2 = Agam_archivo[:,0]; y2 = Agam_archivo[:,1]
+
+xfinal = np.concatenate((x2,Ks))
+
+yfinal = np.concatenate((y2,Agam_18_to_20))
 
 # load pendientes.txt
 # pendientes_archivo = np.array([[0.0, 1.0, 0],
@@ -931,21 +948,102 @@ x2 = Agam_archivo[:,0]; y2 = Agam_archivo[:,1]
 # [19.6, 0.479928184183485,0],
 # [19.8, 0.439765301492974,0]])
 # x = pendientes_archivo[:,0]; y = pendientes_archivo[:,1]
-pendientes_archivo = np.genfromtxt('pendientes_RAFA.txt', delimiter=',')
-x = pendientes_archivo[:,0]; y = pendientes_archivo[:,1]
+#%%
+pendientes_archivo = np.genfromtxt('pendientes_exponential2.txt', delimiter=',')
+Kx = pendientes_archivo[:,0]; pendientes = pendientes_archivo[:,1]; yerr = pendientes_archivo[:,2];
+linf = pendientes_archivo[:,3]; lsup = pendientes_archivo[:,4];
+# pend_normed = (pendientes - min(pendientes))/(max(pendientes) - min(pendientes))
+
+tamanios=lsup-linf
+
+for i,tam in enumerate(tamanios):
+    if tam < 3:
+        if i<6:
+            pendientes[i] = 1
+            yerr[i] = 0
+        else:
+            pendientes[i] = (pendientes[i+1]+pendientes[i-1])/2
+            yerr[i] =  np.sqrt(yerr[i-1]**2 + yerr[i+1]**2)
 #%% plot 
 # pendientes_archivo = np.genfromtxt('pendientes.txt',delimiter=',',usecols=(0,1))
 # x = pendientes_archivo[:,0]; y = pendientes_archivo[:,1]
+# plt.figure(figsize=(12,8))
+# plt.plot(x,y, '.-', label=r'OTOC $\alpha_{O_1}$ N=5000')
+# # plt.plot(x2,y2, '.-', label=r'Agam $|\epsilon_1|$'+f' N=90')
+# plt.plot(Ks,evals_1[:,0], '.-', label=r'Ulam $|\epsilon_{1}|$'+f' N={Ns[0]}')
+# plt.plot(Ks,evals_K[:,0], '.-', label=r'Ulam $1^{er}\,|\epsilon_{overlap}|$'+f' N={Ns[0]}')
+# plt.plot(Ks,evals_min[:,0], '.-', label=r'Ulam $\min |\epsilon_{overlap}|$'+f' N={Ns[0]}')
+# # plt.plot(Ks,evals_K[:,1], '.-', label=r'$|\epsilon_{overlap}|$'+f'N={Ns[1]}')
+# plt.xlabel(r'$K$')
+# plt.ylabel(r'$|\epsilon|$')#', $\alpha_{O_1}$')
+# plt.grid(True)
+# plt.legend(loc=3)
+# plt.tight_layout()
+# plt.savefig(f'Agam_y_overlap_vs_K_N{Ns[0]}_ruido{ruido[0]}.pdf', dpi=100)
+#%% Comparo Ulam con ruido heff para distintos Ns
+Ns = np.array([30,30,40,50])#np.arange(30,51,10)
+# Neff = Ns[0]
+ruido = [0]+list(1/(dpi*Ns[1:]))#1/2**8#[0.00390625]#1/2**np.arange(1,3,2)*110 # abs
+        
+mapa = 'normal'#'absortion'#'dissipation'#'normal'#'cat'#'Harper'#
+method = 'Ulam'#'one_trayectory'#
+eta = 0.3
+# a = 2
+cx = 1
+
+Kpaso = .2
+Ks = np.arange(0,20.1,Kpaso)#0.971635406
+
+evals = np.zeros((len(Ks), len(Ns))); indexs = np.zeros((len(Ks), len(Ns)))
+
+overlap_lim = 5e-3
+Nc = int(1e3)#int(2.688e7)#int(1e8)#
+#
+k = 45
+for ni in tqdm(range(len(Ns)), desc='N loop'):
+    print('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n\n')
+    for ki in range(len(Ks)):
+        print(ni,ki)
+        Neff = Ns[ni]
+        K = Ks[ki]
+        Nx = int(cx*Neff)
+        N = Nx**2
+        flag = f'Ulam_approximation_method{method}_mapa{mapa}_Sij_eigenvals_N{Ns[ni]}_ruido_abs{ruido[ni]}_axisboth_grilla{cx}N_K{K:.6f}_Nc{Nc}'
+    
+        archives = np.load(flag+'.npz')
+        e = archives['e']
+        evec = archives['evec']
+        
+        # e1 = np.abs(evec[:,1])
+        # overlaps=np.zeros((evec.shape[1]))
+        # for i in range(evec.shape[1]):
+        #     ei = np.abs(evec[:,i])
+        #     overlap = np.vdot(e1,ei)**2
+        #     # print(overlap)
+        #     overlaps[i] = overlap
+        
+    
+        # i = argoverlap(overlaps)
+        # i_min = np.argmin(overlaps)
+        # print(Ns[ni], Ks[ki], i, np.abs(e[i]))
+        evals[ki,ni] = np.abs(e[1])
+        indexs[ki,ni] = i
+        i = 0; i_min = 0
+#%% Ahora ploteo
+alpha = 0.9
+
 plt.figure(figsize=(12,8))
-plt.plot(x,y, '.-', label=r'OTOC $\alpha_{O_1}$ N=5000')
-# plt.plot(x2,y2, '.-', label=r'Agam $|\epsilon_1|$'+f' N=90')
-plt.plot(Ks,evals_1[:,0], '.-', label=r'Ulam $|\epsilon_{1}|$'+f' N={Ns[0]}')
-plt.plot(Ks,evals_K[:,0], '.-', label=r'Ulam $1^{er}\,|\epsilon_{overlap}|$'+f' N={Ns[0]}')
-plt.plot(Ks,evals_min[:,0], '.-', label=r'Ulam $\min |\epsilon_{overlap}|$'+f' N={Ns[0]}')
+plt.plot(Kx,pendientes, '.-k', lw=1, ms=15, alpha=alpha)
+plt.errorbar(Kx,pendientes,yerr, fmt='k', label=r'$O_1$ decay', alpha=alpha)
+# plt.plot(xfinal,yfinal, '.-', label=r'Agam'+f' N=90')
+for ni in range(len(Ns)):
+    plt.plot(Ks,evals[:,ni], '.-', label=f' N={Ns[ni]}')
 # plt.plot(Ks,evals_K[:,1], '.-', label=r'$|\epsilon_{overlap}|$'+f'N={Ns[1]}')
 plt.xlabel(r'$K$')
-plt.ylabel(r'$|\epsilon|$')#', $\alpha_{O_1}$')
-plt.grid(True)
-plt.legend(loc='best')
+plt.ylabel(r'$|\lambda|$')#', $\alpha_{O_1}$')
+# plt.grid(True)
+# plt.legend(loc=3)
+plt.xticks(list(Ks[::20])+[20])
+plt.yticks(np.arange(0.4,1.1,0.2))
 plt.tight_layout()
-plt.savefig(f'Agam_y_overlap_vs_K_N{Ns[0]}_ruido{ruido[0]}.pdf', dpi=100)
+plt.savefig(f'comparacion_Ulam_vs_K_variosN_ruido{ruido[0]}.pdf', dpi=100)

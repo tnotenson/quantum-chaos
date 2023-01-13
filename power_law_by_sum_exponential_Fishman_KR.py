@@ -12,7 +12,7 @@ from copy import deepcopy
 from scipy.special import jv
 from scipy.sparse.linalg import eigs
 from tqdm import tqdm
-from time import time
+from time import time, sleep
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sb
@@ -231,7 +231,7 @@ def get_axis_limits(ax, scalex=.1, scaley=.85):
 colorlist=[plt.cm.brg(i) for i in np.linspace(0, 1, 6)]
 #%% try it. Create Perron-Frobenius matrix
 sigma = 0.2
-N = 20
+N = 60
 K = 3
 U = matrix_U_Fourier(N, K, sigma=sigma)
 # Diagonalize it
@@ -378,7 +378,7 @@ def lambdaexp_sum(t, ei):
     return ei**(2*t)
 
 # number of eigenvalues in real axis
-points = 20
+points = 1200
 i=0
 j=0
 # resonancias = np.zeros(points)
@@ -388,13 +388,15 @@ j=0
 #         resonancias[i] = 2*np.log(np.abs(e[j]))
 #         i+=1
 #     j+=1
+# print(np.abs(e[:points]))
+print(np.all(np.abs(e[:points])))
 resonancias = 2*np.log(np.abs(e[:points]))
 
 # time
 t = np.arange(30)
 
 # O1
-c1 = 1
+c1 = 100
 fx = 0 
 # f2 = 0
 
@@ -421,8 +423,8 @@ fx = np.abs(fx)#/norm#/18*4
 # if input_lsup_plaw!='':
 #     lsup_plaw = int(input_lsup_plaw)+1
 
-linf_plaw=5
-lsup_plaw=len(t)-19#linf_plaw+5#len(t)
+linf_plaw=1
+lsup_plaw=linf_plaw+3#len(t)#len(t)-19#
 linf = linf_plaw
 lsup = lsup_plaw
 tamanio = lsup-linf
@@ -434,15 +436,16 @@ SEb,SEm = np.sqrt(np.diag(pcov))
 plt.figure(figsize=(10,10))
 plt.title(f'cant de resonancias = {points}. Fishman')
 plt.plot(t, np.abs(fx), '.-', label=r'$O_1$')
-plt.plot(t, np.abs(f2), '.-', label=r'$f_2$')
-# plt.plot(t[1:], np.exp(m*np.log(t[1:])+b), '-r', lw=1.5, label=f'slope = {m:.2f}'+r'$\pm$'+f'{SEm:.2f}', alpha=0.6)
-# plt.fill_between(t[linf:lsup],0*np.ones(tamanio),1.3*np.ones(tamanio), alpha=0.3)
+# plt.plot(t, np.abs(f2), '.-', label=r'$f_2$')
+plt.plot(t[1:], np.exp(m*np.log(t[1:])+b), '-r', lw=1.5, label=f'slope = {m:.2f}'+r'$\pm$'+f'{SEm:.2f}', alpha=0.6)
+plt.fill_between(t[linf:lsup],0*np.ones(tamanio),1.3*np.ones(tamanio), alpha=0.3)
 # plt.plot(t,np.exp(-1.51*np.log(t)+b))
 plt.xlabel(r'$t$')
 # plt.xlim(theta_min_for_plot,theta_max_for_plot)
-plt.ylabel(r'$\sum_i \exp(2\log(\epsilon_i).t) $')
+plt.ylabel(r'$\sum_i \epsilon_i^{2t} $')
+
 plt.yscale('log')
-# plt.xscale('log')
+plt.xscale('log')
 plt.ylim(min(np.abs(fx)),max(np.abs(fx)))
 plt.legend(loc='best')
 plt.tight_layout()

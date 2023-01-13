@@ -88,10 +88,10 @@ colorlist=[plt.cm.brg(i) for i in np.linspace(0, 1, 6)]
 dpi=2.0*pi
 # The following 6 lines for the primary plot
 # Execution time is insignificant
-K=12.2
-# Ks = np.arange(0, 20.1, .2)#np.array([0.5, 3, 6, 8, 10, 12])#[0.25, 0.5, 2, 3, 6, 10]
-number_of_trajectories=int(2e4)
-number_of_points=800
+# K=6.6
+Ks = [17]# np.arange(0, 20.1, .2)#np.array([0.5, 3, 6, 8, 10, 12])#[0.25, 0.5, 2, 3, 6, 10]
+# number_of_trajectories=int(2e4)
+# number_of_points=800
 theta_min_for_plot=0.
 theta_max_for_plot=1.#dpi
 I_min_for_plot=0.
@@ -110,134 +110,135 @@ I_max_for_plot=1.#dpi
 # The following 6 lines good for a ternary island
 # Execution time: 28seconds
 # K=1.0
-# number_of_trajectories=1000
-# number_of_points=10000
+number_of_trajectories=500
+number_of_points=4000
 # theta_min_for_plot=4.05
 # theta_max_for_plot=4.35
 # I_min_for_plot=3.6
 # I_max_for_plot=3.75
-# N = number_of_points*number_of_trajectories
+N = number_of_points*number_of_trajectories
 
-# data_Ks = np.zeros((N, 2, len(Ks)))
+data_Ks = np.zeros((N, 2, len(Ks)))
 
-# for k, K in enumerate(Ks):
+for k, K in enumerate(Ks):
         
-#     thetas, Is = [[], []]
-#     Keff = K/(2*np.pi)
-#     for i_traj in range(number_of_trajectories):
-#       theta=random.uniform(0,1)
-#       I=random.uniform(0,1)
-#       for i in range(number_of_points):
-#         if ((theta>=theta_min_for_plot)&(theta<=theta_max_for_plot)&(I>=I_min_for_plot)&(I<=I_max_for_plot)):
-#           # print (theta,I)
-#           thetas.append(theta)
-#           Is.append(I)
-#         I=(I+Keff*sin(dpi*theta))%1
-#         theta=(theta+I)%1
-#       # print(' ')
-#     data_Ks[:,0,k] = thetas
-#     data_Ks[:,1,k] = Is
-    
-#%% 
-# i = 0
-# for i in range(len(Ks)):
-    
-#     thetas = data_Ks[:,0,i]
-#     Is = data_Ks[:,1,i]
-#     plt.figure(figsize=(10,10))
-#     plt.title(f'K={Ks[i]:.2f}')
-#     plt.plot(thetas, Is, 'b.', ms=0.2)
-#     plt.xlabel(r'$q$')
-#     plt.xlim(0,1)
-#     # plt.xlim(theta_min_for_plot,theta_max_for_plot)
-#     plt.ylabel(r'$p$')
-#     plt.ylim(0,1)
-#     # plt.ylim(I_min_for_plot,I_max_for_plot)
-#     plt.tight_layout()
-#     plt.savefig(f'phase_space_K{Ks[i]:.2F}.png')
-#%% Compute area ratio between regular and chaotic region
-from copy import deepcopy
-
-def initial_region(theta,I,theta0,I0,delta=0.001):
-    modulo = np.sqrt((theta-theta0)**2+(I-I0)**2)
-    if modulo < delta:
-        return True
-    else: 
-        return False
-
-def Metropolis_chaotic_area(K,number_of_trajectories=int(1.5e4), number_of_points=int(1e4)):
-    n_tmax=0
-    ts = np.zeros(number_of_trajectories); 
-    thetas = np.zeros(number_of_trajectories); Is = np.zeros(number_of_trajectories)
+    thetas, Is = [[], []]
     Keff = K/(2*np.pi)
-    for i_traj in tqdm(range(number_of_trajectories), desc='loop trajectories'):
-        theta=random.uniform(0,1)
-        thetas[i_traj] = theta
-        I=random.uniform(0,1)
-        Is[i_traj] = I
-        for i in range(number_of_points):
-             # if ((theta>=theta_min_for_plot)&(theta<=theta_max_for_plot)&(I>=I_min_for_plot)&(I<=I_max_for_plot)):
-                 # print (theta,I)
-                 # thetas.append(theta)
-                 # Is.append(I)
-             I=(I+Keff*sin(dpi*theta))%1
-             theta=(theta+I)%1
-             decision = initial_region(theta,I,thetas[i_traj],Is[i_traj])
-             if decision:
-                 n_tmax+=1 
-                 ts[i_traj] = i
-                 break
-    return n_tmax/number_of_trajectories, ts, np.array([thetas,Is])
+    for i_traj in range(number_of_trajectories):
+      theta=random.uniform(0,1)
+      I=random.uniform(0,1)
+      for i in range(number_of_points):
+        if ((theta>=theta_min_for_plot)&(theta<=theta_max_for_plot)&(I>=I_min_for_plot)&(I<=I_max_for_plot)):
+          # print (theta,I)
+          thetas.append(theta)
+          Is.append(I)
+        I=(I+Keff*np.sin(dpi*theta))%1
+        theta=(theta+I)%1
+      # print(' ')
+    data_Ks[:,0,k] = thetas
+    data_Ks[:,1,k] = Is
+    
+# %% 
+i = 0
+for i in range(len(Ks)):
+    
+    thetas = data_Ks[:,0,i]
+    Is = data_Ks[:,1,i]
+    plt.figure(figsize=(10,10))
+    # plt.title(f'K={Ks[i]:.2f}')
+    plt.plot(thetas, Is, 'b.', ms=0.06)
+    plt.xlabel(r'$q$')
+    plt.xlim(0,1)
+    # plt.xlim(theta_min_for_plot,theta_max_for_plot)
+    plt.ylabel(r'$p$')
+    plt.ylim(0,1)
+    # plt.ylim(I_min_for_plot,I_max_for_plot)
+    plt.axis('off')
+    plt.tight_layout()
+    plt.savefig(f'phase_space_K{Ks[i]:.2F}.png', dpi=40)
+#%% Compute area ratio between regular and chaotic region
+# from copy import deepcopy
 
-K = 3
+# def initial_region(theta,I,theta0,I0,delta=0.001):
+#     modulo = np.sqrt((theta-theta0)**2+(I-I0)**2)
+#     if modulo < delta:
+#         return True
+#     else: 
+#         return False
 
-r_reg, ts, qp = Metropolis_chaotic_area(K)
+# def Metropolis_chaotic_area(K,number_of_trajectories=int(1.5e4), number_of_points=int(7.5e3), delta=0.001):
+#     n_tmax=0
+#     ts = np.zeros(number_of_trajectories); 
+#     thetas = np.zeros(number_of_trajectories); Is = np.zeros(number_of_trajectories)
+#     Keff = K/(2*np.pi)
+#     for i_traj in tqdm(range(number_of_trajectories), desc='loop trajectories'):
+#         theta=random.uniform(0,1)
+#         thetas[i_traj] = theta
+#         I=random.uniform(0,1)
+#         Is[i_traj] = I
+#         for i in range(number_of_points):
+#              # if ((theta>=theta_min_for_plot)&(theta<=theta_max_for_plot)&(I>=I_min_for_plot)&(I<=I_max_for_plot)):
+#                  # print (theta,I)
+#                  # thetas.append(theta)
+#                  # Is.append(I)
+#              I=(I+Keff*sin(dpi*theta))%1
+#              theta=(theta+I)%1
+#              decision = initial_region(theta,I,thetas[i_traj],Is[i_traj], delta=delta)
+#              if decision:
+#                  n_tmax+=1 
+#                  ts[i_traj] = i
+#                  break
+#     return n_tmax/number_of_trajectories, ts, np.array([thetas,Is])
 
-print(r_reg)
-#%%
-import matplotlib as mpl
+# K = 3
 
-colors = mpl.pyplot.cm.jet(np.linspace(0,1,len(ts)))
+# r_reg, ts, qp = Metropolis_chaotic_area(K)
 
-thetas = qp[0]
-Is = qp[1]
-plt.figure(figsize=(10,10))
-plt.title(f'K={K:.2f}')
-plt.scatter(thetas, Is, c=ts, vmin=0, vmax=number_of_points, s=5)
-plt.xlabel(r'$q$')
-plt.xlim(0,1)
-# plt.xlim(theta_min_for_plot,theta_max_for_plot)
-plt.ylabel(r'$p$')
-plt.ylim(0,1)
-# plt.ylim(I_min_for_plot,I_max_for_plot)
-plt.tight_layout()
-plt.savefig(f'regular_area_phase_space_K{K:.2f}.png')
+# print(r_reg)
+# #%%
+# import matplotlib as mpl
 
-#%% r_reg vs K
-Kpaso = 1/5
-Ks = np.arange(0,20.1,Kpaso)
-delta = 0.005
-rs = np.zeros(len(Ks))
-for k,K in tqdm(enumerate(Ks), desc='K loop'):
-    r_reg, _, _ = Metropolis_chaotic_area(K,delta=delta)
-    rs[k] = r_reg
-file = f'regular_area_vs_K__Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_time_lim{number_of_points}_ntraj{number_of_trajectories}_delta{delta}'
-np.savez(file+'.npz', rs=rs, Ks=Ks)
-#%%
-y = 1-rs**(-1)
-y_normed = (y-min(y))/(max(y)-min(y))
+# colors = mpl.pyplot.cm.jet(np.linspace(0,1,len(ts)))
 
-plt.figure(figsize=(10,10))
-plt.title(r'$r_{reg}$ Regular Area')
-plt.plot(Ks, y_normed, '.-')
-plt.xlabel(r'$K$')
+# thetas = qp[0]
+# Is = qp[1]
+# plt.figure(figsize=(10,10))
+# plt.title(f'K={K:.2f}')
+# plt.scatter(thetas, Is, c=ts, vmin=0, vmax=number_of_points, s=5)
+# plt.xlabel(r'$q$')
 # plt.xlim(0,1)
-# plt.xlim(theta_min_for_plot,theta_max_for_plot)
-plt.ylabel(r'$1-r_{reg}^{-1}$')
+# # plt.xlim(theta_min_for_plot,theta_max_for_plot)
+# plt.ylabel(r'$p$')
 # plt.ylim(0,1)
-# plt.ylim(I_min_for_plot,I_max_for_plot)
-plt.tight_layout()
-plt.savefig(file+'.png')
+# # plt.ylim(I_min_for_plot,I_max_for_plot)
+# plt.tight_layout()
+# plt.savefig(f'regular_area_phase_space_K{K:.2f}.png')
+
+# #%% r_reg vs K
+# Kpaso = 1/5
+# Ks = np.arange(0,20.1,Kpaso)
+# delta = 0.0001
+# rs = np.zeros(len(Ks))
+# for k,K in tqdm(enumerate(Ks), desc='K loop'):
+#     r_reg, _, _ = Metropolis_chaotic_area(K,delta=delta)
+#     rs[k] = r_reg
+# file = f'regular_area_vs_K__Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_time_lim{number_of_points}_ntraj{number_of_trajectories}_delta{delta}'
+# np.savez(file+'.npz', rs=rs, Ks=Ks)
+# #%%
+# y = 1-rs**(-1)
+# y_normed = (y-min(y))/(max(y)-min(y))
+
+# plt.figure(figsize=(10,10))
+# plt.title(r'$r_{reg}$ Regular Area')
+# plt.plot(Ks, y_normed, '.-')
+# plt.xlabel(r'$K$')
+# # plt.xlim(0,1)
+# # plt.xlim(theta_min_for_plot,theta_max_for_plot)
+# plt.ylabel(r'$1-r_{reg}^{-1}$')
+# # plt.ylim(0,1)
+# # plt.ylim(I_min_for_plot,I_max_for_plot)
+# plt.tight_layout()
+# plt.savefig(file+'.png')
 
 #%% make a gif with phase spaces vs K
 # import os 

@@ -19,32 +19,34 @@ dpi = 2*np.pi
 
 plt.rcParams['text.usetex'] = True
 
-font_size=30
-letter_size=32
-label_size=35
-title_font=28
-legend_size=23
+delta = 4
+
+font_size=20+delta
+letter_size=28+delta
+label_size=35+delta
+title_font=22+delta
+legend_size=20+delta
 
 from matplotlib import rc
 rc('font', family='serif', size=font_size)
 rc('text', usetex=True)
 
+delta2 = 4
 
-
-mpl.rcParams['lines.linewidth'] = 2
+mpl.rcParams['lines.linewidth'] = 2+delta2
 mpl.rcParams['axes.labelsize'] = label_size
 mpl.rcParams['xtick.minor.visible']=True
-mpl.rcParams['xtick.major.size']=6
-mpl.rcParams['xtick.minor.size']=3
-mpl.rcParams['xtick.major.width']=1.4
-mpl.rcParams['xtick.minor.width']=0.9
+mpl.rcParams['xtick.major.size']=6+delta2
+mpl.rcParams['xtick.minor.size']=3+delta2
+mpl.rcParams['xtick.major.width']=1.4+0.5*delta2
+mpl.rcParams['xtick.minor.width']=0.9+0.5*delta2
 mpl.rcParams['xtick.direction']='in'
 
 mpl.rcParams['ytick.minor.visible']=True
-mpl.rcParams['ytick.major.size']=6
-mpl.rcParams['ytick.minor.size']=3
-mpl.rcParams['ytick.major.width']=2.1
-mpl.rcParams['ytick.minor.width']=1.3
+mpl.rcParams['ytick.major.size']=6+delta2
+mpl.rcParams['ytick.minor.size']=3+delta2
+mpl.rcParams['ytick.major.width']=2.1+0.5*delta2
+mpl.rcParams['ytick.minor.width']=1.3+0.5*delta2
 mpl.rcParams['ytick.direction']='in'
 
 mpl.rcParams['ytick.direction']='in'
@@ -79,6 +81,28 @@ def normalize(x):
 
 @jit
 def qp_from_j(j,Nx,paso,mapa='normal'):
+    '''
+    Take number of cell and return (q,p)
+
+    Parameters
+    ----------
+    j : integer
+        number of cell
+    Nx : integer
+        sqrt(number of cells). Divide phase space in (Nx)^2 cells
+    paso : float
+        width of cell
+    mapa : string, optional
+        Map of interest. The default is 'normal'.
+
+    Returns
+    -------
+    qj : float
+        position 
+    pj : float
+        momentum
+
+    '''
     if (mapa=='normal' or mapa=='cat' or mapa=='Harper'):
         qj = (j%Nx)*paso
         pj = ((j//Nx)%Nx)*paso
@@ -94,6 +118,22 @@ def qp_from_j(j,Nx,paso,mapa='normal'):
 
 @jit
 def eigenvec_j_to_qp(eigenvector, mapa='normal'):
+    '''
+    Change representation of eigenvalues from cells to (q,p)
+
+    Parameters
+    ----------
+    eigenvector : array_like
+        state in cell representation.
+    mapa : string, optional
+        Map of interest. The default is 'normal'.
+
+    Returns
+    -------
+    eig_res : array_like
+        state in (q,p) representation.
+
+    '''
     N = len(eigenvector)
     Nx = int(np.sqrt(N))
     paso = 1
@@ -104,45 +144,58 @@ def eigenvec_j_to_qp(eigenvector, mapa='normal'):
         eig_res[int(q),int(p)] = eigenvector[j]
     return eig_res
 
-def plot_eigenstates(hus, i, *args, **kwargs):
+def plot_eigenstates(hus1, hus2, i1, i2, *args, **kwargs):
     
-    data = hus 
+    data1 = hus1
+    data2 = hus2
     
     cmap = mpl.cm.get_cmap('viridis', 12)
-    fig, ax = plt.subplots(figsize=(12,10))
-    heatmap = ax.pcolor(data, cmap=cmap)
+    fig, (ax1, ax2) = plt.subplots(1, 2,figsize=(22,10),gridspec_kw={'width_ratios': [1, 1.25]})
+    heatmap1 = ax1.pcolor(data1, cmap=cmap)
+    heatmap2 = ax2.pcolor(data2, cmap=cmap)
+    
     
     #legend
-    cbar = plt.colorbar(heatmap)
+    cbar = plt.colorbar(heatmap2)
     # cbar.ax.set_yticklabels(['0','1','2','>3'])
-    # cbar.set_label(r'$|\psi|^2$', rotation=0)#, fontsize=10)
-    cbar.ax.set_title(r'$|\psi|^2$', rotation=0)
+    cbar.set_label(r'$|\psi|^2$', rotation=0)#, fontsize=10)
+    # cbar.ax.set_title(r'$|\psi|^2$', rotation=0)
+    cbar.set_label(r'$|\psi|^2$', rotation=270, labelpad=+40, y=0.45)
     
     qs = np.arange(0,Neff+1)#/Neff
     
-    paso = int(Neff/10)
+    paso = int(Neff/3)
     
     # put the major ticks at the middle of each cell
-    ax.set_xticks(qs[::paso], minor=False)
-    ax.set_yticks(qs[::paso], minor=False)
+    ax1.set_xticks(qs[::paso], minor=False)
+    ax2.set_xticks(qs[::paso], minor=False)
+    ax1.set_yticks(qs[::paso], minor=False)
+    ax2.set_yticks(qs[::paso], minor=False)
     # ax.invert_yaxis()
     
     #labels
     labels = [f'{qs[index]/Neff:.1f}' for index in range(0,len(qs)+1,paso)]
     # column_labels = qs#list('ABCD')
     # row_labels = qs#list('WXYZ')
-    ax.set_xticklabels(labels, minor=False)
-    ax.set_yticklabels(labels, minor=False)
-    ax.set_xlabel(r'$q$')
-    ax.set_ylabel(r'$p$', rotation=0)
+    ax1.set_xticklabels(labels, minor=False)
+    ax2.set_xticklabels(labels, minor=False)
+    x_ticks = ax1.xaxis.get_major_ticks()
+    x_ticks[0].label1.set_visible(False) ## set first x tick label invisible
+    x_ticks = ax2.xaxis.get_major_ticks()
+    x_ticks[0].label1.set_visible(False) ## set first x tick label invisible
+    ax1.set_yticklabels(labels[:], minor=False)
+    ax2.set_yticklabels([])#, minor=False)
+    ax1.set_xlabel(r'$q$')
+    ax2.set_xlabel(r'$q$')
+    ax1.set_ylabel(r'$p$', rotation=90)
     # plt.subplots_adjust(hspace=1)
 
     plt.tight_layout()
-    plt.show()
-    plt.savefig(f'autoestado_n{i}_N{Neff}'+flag+'.png', dpi=80)
+    # plt.show()
+    plt.savefig(f'autoestado_n{i1}_n{i2}_N{Neff}'+flag+'.pdf', dpi=100)
 
 #%% 
-Ns = [128]#np.arange(81,100,2) #np.arange(124,128,2)#np.concatenate((np.arange(20,71,1),np.arange(120,131,2)))#2**np.arange(5,8)
+Ns = [90]#np.arange(81,100,2) #np.arange(124,128,2)#np.concatenate((np.arange(20,71,1),np.arange(120,131,2)))#2**np.arange(5,8)
 es = [0.00390625]#1/2**np.arange(1,3,2)*110 # abs
 resonancias = np.zeros((len(Ns),len(es)))
         
@@ -170,12 +223,15 @@ evec = archives['evec']
 # guardo los autoestados 
 # ni = 0
 ri = 0
-for i in range(evec.shape[1]):#ies:#
-    # i = 1
-    if i == 1:
-        hus = np.abs(eigenvec_j_to_qp(evec[:,i]))#**2
-        # plt.figure(figsize=(12,10))
-        # plt.title(f'Standard Map. N={Ns[ni]}, e={es[ri]:.0e}, K={K}, i={i}, eval={np.abs(e[i]):.3f}')
-        plot_eigenstates(hus,i)
+# for i in range(evec.shape[1]):#ies:#
+#     # i = 1
+#     if i == 21:
+i1 = 1 
+i2 = 21
+hus1 = np.abs(eigenvec_j_to_qp(evec[:,i1]))#**2
+hus2 = np.abs(eigenvec_j_to_qp(evec[:,i2]))
+# plt.figure(figsize=(12,10))
+# plt.title(f'Standard Map. N={Ns[ni]}, e={es[ri]:.0e}, K={K}, i={i}, eval={np.abs(e[i]):.3f}')
+plot_eigenstates(hus1, hus2, i1 ,i2)
 
 

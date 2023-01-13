@@ -138,3 +138,33 @@ plt.ylabel(r'$m$')
 # plt.ylim(I_min_for_plot,I_max_for_plot)
 plt.tight_layout()
 plt.savefig('m_vs_points_power_law_by_exponential.png', dpi=80)
+#%% plot integral of exp(-r*t)
+def analitico(t):
+    return (1 - np.exp(-t))/t
+
+points = 1000
+resonancias = np.linspace(0,1,points)
+
+t = np.arange(11)
+
+fx = 0 
+for r in range(len(resonancias)):
+    fx += power_law_by_exp(resonancias[r],t)
+
+plt.figure(figsize=(10,10))
+plt.title(f'cant de resonancias = {points}. límites: [{min(resonancias):.1f},{max(resonancias):.1f}]. Espaciado lineal')
+plt.plot(t, fx, '.-', label=r'$O_1$')
+plt.plot(t, fx[0]*analitico(t), '-r', lw=1.5, label=r'$\int\limits_0^1 \exp(-\epsilon.t) d\epsilon$', alpha=0.6)
+# plt.fill_between(t, np.exp((m-SEm)*np.log(t)+b+SEb), np.exp((m+SEm)*np.log(t)+b-SEb),
+          # color='red', alpha=0.2)
+plt.xlabel(r'$t$')
+# plt.xlim(theta_min_for_plot,theta_max_for_plot)
+plt.ylabel(r'$\sum_i \exp(-\epsilon_i.t) $')
+plt.yscale('log')
+plt.xscale('log')
+# plt.xlim(0,50)
+# plt.ylim(0,1)
+# plt.ylim(I_min_for_plot,I_max_for_plot)
+plt.tight_layout()
+plt.legend(loc='best')
+plt.savefig('analytic_power_law_by_exponential.png', dpi=80)

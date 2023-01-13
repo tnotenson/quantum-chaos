@@ -17,8 +17,9 @@ from cmath import phase
 from random import random
 import seaborn as sns
 from scipy.stats import norm, multivariate_normal
-from scipy.sparse.linalg import eigs
+from scipy.linalg import eig
 import scipy.sparse as ss
+from scipy.sparse.linalg import eigs
 
 plt.rcParams.update({
 "text.usetex": True,
@@ -99,8 +100,8 @@ def CI_and_evolution(qj,pj,paso,K,mapa='normal',ruido=10):
 @jit
 def gaussian_kernel(q,p,paso,ruido,modulo=1):
     # rv = norm(0, ruido*paso)
-    qf = (q + np.random.normal(0,paso/ruido))%modulo
-    pf = (p + np.random.normal(0,paso/ruido))%modulo
+    qf = (q + np.random.normal(0,ruido))%modulo
+    pf = (p + np.random.normal(0,ruido))%modulo
     
     return qf, pf
 
@@ -268,15 +269,15 @@ def eigenvec_j_to_qp(eigenvector, mapa='normal'):
     N = len(eigenvector)
     Nx = int(np.sqrt(N))
     paso = 1
-    eig_res = np.zeros((Nx,Nx))
+    eig_res = np.zeros((Nx,Nx), dtype=np.complex_)
     for j in range(N):
         q,p = qp_from_j(j, Nx, paso, mapa)
         # print(int(q),int(p))
         eig_res[int(q),int(p)] = eigenvector[j]
     return eig_res
 #%%
-Ns = np.arange(128,130,2) #np.arange(124,128,2)#np.concatenate((np.arange(20,71,1),np.arange(120,131,2)))#2**np.arange(5,8)
-es = [1e10]#np.logspace(2,4,1) 
+Ns = [90]#np.arange(81,100,2) #np.arange(124,128,2)#np.concatenate((np.arange(20,71,1),np.arange(120,131,2)))#2**np.arange(5,8)
+es = [0.00390625]#1/2**np.arange(1,3,2)*110 # abs
 resonancias = np.zeros((len(Ns),len(es)))
         
 mapa = 'normal'#'absortion'#'dissipation'#'normal'#'cat'#'Harper'#
@@ -285,11 +286,11 @@ eta = 0.3
 a = 2
 cx = 1
 
-K = 12#0.971635406
+K = 17#0.971635406
 
-Nc = int(1e3)
+Nc = int(1e3)#int(2.688e7)#int(1e8)#
 #%%
-
+k = 45
 for ni in tqdm(range(len(Ns)), desc='loop ni'):
     for ri in tqdm(range(len(es)), desc='loop ri'):
                 
@@ -315,21 +316,343 @@ for ni in tqdm(range(len(Ns)), desc='loop ni'):
         # mitad = int(S.shape[0]/2)
         # diagonalize operator
         t0=time()
-        e, evec = eigs(S,k=k)#np.linalg.eig(S)
+        e, evec = eigs(S, k=k)
+        eabs = np.abs(e)
+        evec=evec[:,eabs.argsort()[::-1]]
+        e = e[eabs.argsort()][::-1]
         t1=time()
         print(f'\nDiagonalización: {t1-t0} seg')
-        flag = f'Ulam_approximation_method{method}_mapa{mapa}_Sij_eigenvals_N{Neff}_ruido{ruido}_grilla{cx}N_K{K}_Nc{Nc}'
+        flag = f'Ulam_approximation_method{method}_mapa{mapa}_Sij_eigenvals_N{Neff}_ruido_abs{ruido}_grilla{cx}N_K{K}_Nc{Nc}'
         np.savez(flag+'.npz', e=e, evec=evec[:,:k])
-#%%
-flag = f'Ulam_approximation_method{method}_mapa{mapa}_Sij_eigenvals_N{Neff}_ruido{ruido}_grilla{cx}N_K{K}_Nc{Nc}'
+        del S; del e; del evec;
+#%% cargo autoestado ni 
+import os
+import imageio
+ni = 0
+
+Neff = Ns[ni]
+ruido = es[0]
+# flag = f'Ulam_approximation_method{method}_mapa{mapa}_Sij_eigenvals_N{Neff}_ruido{ruido}_grilla{cx}N_K{K}_Nc{Nc}'
+flag = 'Ulam_approximation_methodUlam_mapanormal_Sij_eigenvals_N110_ruido0.00390625_grilla1N_K7_Nc1000'
 archives = np.load(flag+'.npz')
 e = archives['e']
 evec = archives['evec']
-ies = [1,9]
+# e = np.abs(e)
+# evec=evec[:,e.argsort()[::-1]]
+# e = np.sort(e)[::-1]
+# ies = [1,9]
+# guardo los autoestados 
+# ni = 0
+ri = 0
 for i in range(evec.shape[1]):#ies:#
     # i = 1
-    vecqp = np.abs(eigenvec_j_to_qp(evec[:,i]))**2
+    hus = np.abs(eigenvec_j_to_qp(evec[:,i]))#**2
     plt.figure()
-    plt.title(f'Standard Map. N={Ns[ni]}, e={es[ri]:.0e}, K={K}')
-    sns.heatmap(vecqp)
+    plt.title(f'Standard Map. N={Ns[ni]}, e={es[ri]:.0e}, K={K}, i={i}, eval={np.abs(e[i]):.3f}')
+    sns.heatmap(hus)
+    plt.tight_layout()
     plt.savefig(f'autoestado_n{i}'+flag+'.png', dpi=80)
+    plt.close()
+# hago gif
+
+# Build GIF
+with imageio.get_writer('gif_autoestados_'+flag+'.gif', mode='I', fps=1) as writer:
+    for i in range(evec.shape[1]):
+        filename = f'autoestado_n{i}'+flag+'.png'
+        image = imageio.imread(filename)
+        writer.append_data(image)
+#%%
+def IPR(state, tol = 0.0001):
+    if (np.linalg.norm(state)-1) > tol:
+        print(np.linalg.norm(state))
+    # state = state.full()
+    pi = np.abs(state) # calculo probabilidades
+    IPR = np.sum(pi**2)/np.sum(pi)**2 # calculo el IPR
+    return IPR # devuelvo el IPR
+
+IPRs=np.zeros((evec.shape[1]))
+for i in range(evec.shape[1]):
+    hus = np.abs(eigenvec_j_to_qp(evec[:,i]))**2
+    tol=1e-3
+    hus /= np.sum(np.abs(hus))
+    aux = IPR(np.abs(hus), tol)
+    IPRs[i] = aux
+
+plt.figure(figsize=(10,6))
+plt.title(f'Criterio IPR. N={Ns[ni]}, e={es[ri]:.0e}, K={K}')
+plt.plot(np.arange(evec.shape[1]), IPRs, 'r.')
+plt.vlines(np.arange(evec.shape[1]), 0, IPRs, color='red', alpha=0.8)
+plt.xticks(np.arange(evec.shape[1]), rotation=45, fontsize=8)
+plt.ylabel('IPR')
+plt.xlabel('autoestado')
+# plt.grid(True)
+plt.tight_layout()
+plt.show()
+plt.savefig(f'IPR_evec'+flag+'.png', dpi=80)
+#%% IPR vs N
+# aislo autoestado asociado a la resonancia para cada N, chequeando que su 
+# autovalor se mantiene cte aprox
+# calculo el IPR y lo guardo
+IPR_lower = 5e-4
+# IPR_treshold = 1e-3
+IPR_N = np.zeros(len(Ns)); evals_N = np.zeros(len(Ns)); IPR_localized = np.zeros(len(Ns))
+indexes = np.zeros(len(Ns))
+index = 1
+for j in range(len(Ns)):
+    Neff = Ns[j]
+    ruido = es[0]
+    flag = f'Ulam_approximation_method{method}_mapa{mapa}_Sij_eigenvals_N{Neff}_ruido{ruido}_grilla{cx}N_K{K}_Nc{Nc}'
+    archives = np.load(flag+'.npz')
+    e = archives['e']
+    evec = archives['evec']
+    
+    IPRs=np.zeros((evec.shape[1]))
+    for vi in range(evec.shape[1]):
+        hus = np.abs(eigenvec_j_to_qp(evec[:,vi]))**2
+        tol=1e-3
+        hus /= np.sum(np.abs(hus))
+        aux = IPR(np.abs(hus), tol)
+        IPRs[vi] = aux
+    
+    cont=0
+    i=1
+    
+    IPR_localized[j] = IPRs[index]
+    while (cont==0 and i<evec.shape[1]):
+
+        # print(f'IPR evec{i} = ', IPRs[i])
+        if ((IPRs[i]-min(IPRs[1:]))<IPR_lower):# and (IPRs[i]<IPR_treshold):
+            cont=1
+        else:
+            i+=1
+    print(i, np.abs(e[i]))
+    indexes[j] = i
+    evals_N[j] = np.abs(e[i])
+    IPR_N[j] = IPR(evec[:,i])
+#%% criterio del overlap
+
+for ni in range(len(Ns)):
+    
+    Neff = Ns[ni]
+    ruido = es[0]
+    flag = f'Ulam_approximation_method{method}_mapa{mapa}_Sij_eigenvals_N{Neff}_ruido{ruido}_grilla{cx}N_K{K}_Nc{Nc}'
+    archives = np.load(flag+'.npz')
+    e = archives['e']
+    evec = archives['evec']
+    
+    e1 = np.abs(evec[:,1])
+    overlaps=np.zeros((evec.shape[1]))
+    for i in range(evec.shape[1]):
+        ei = np.abs(evec[:,i])
+        overlap = np.vdot(e1,ei)**2
+        # print(overlap)
+        overlaps[i] = overlap
+    
+    plt.figure(figsize=(10,6))
+    plt.title(f'Criterio del overlap. N={Ns[ni]}, e={es[ri]:.0e}, K={K}')
+    plt.plot(np.arange(evec.shape[1]), overlaps, 'r.')
+    plt.vlines(np.arange(evec.shape[1]), 0, overlaps, color='red', alpha=0.8)
+    plt.xticks(np.arange(evec.shape[1]), rotation=45, fontsize=8)
+    plt.ylabel(r'overlap $|\langle 1 | i \rangle|^2$')
+    plt.xlabel(r'autoestado $i$')
+    # plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+    plt.savefig(f'overlaps_evec'+flag+'.png', dpi=80)
+#%% overlap vs N
+# aislo autoestado asociado a la resonancia para cada N, chequeando que su 
+# autovalor se mantiene cte aprox
+# calculo el IPR y lo guardo
+overlap_lim = 0.35
+# IPR_treshold = 1e-3
+overlap_N = np.zeros(len(Ns)); evals_N = np.zeros(len(Ns)); indexes = np.zeros(len(Ns))
+index = 1
+for j in range(len(Ns)):
+    Neff = Ns[j]
+    ruido = es[0]
+    flag = f'Ulam_approximation_method{method}_mapa{mapa}_Sij_eigenvals_N{Neff}_ruido{ruido}_grilla{cx}N_K{K}_Nc{Nc}'
+    archives = np.load(flag+'.npz')
+    e = archives['e']
+    evec = archives['evec']
+    
+    e1 = np.abs(evec[:,1])
+    overlaps=np.zeros((evec.shape[1]))
+    for i in range(evec.shape[1]):
+        ei = np.abs(evec[:,i])
+        overlap = np.vdot(e1,ei)**2
+        # print(overlap)
+        overlaps[i] = overlap
+    
+    cont=0
+    i=1
+    
+    while (cont==0 and i<evec.shape[1]):
+
+        # print(f'IPR evec{i} = ', IPRs[i])
+        if (overlaps[i]<overlap_lim):# and (IPRs[i]<IPR_treshold):
+            cont=1
+        else:
+            i+=1
+    print(Ns[j], i, np.abs(e[i]))
+    indexes[j] = i
+    evals_N[j] = np.abs(e[i])
+    overlap_N[j] = overlaps[i]
+#%%
+# indexes = np.array([7,7,11,12,11,11,11,11,11,11])
+for j, i in enumerate(indexes):
+    Neff = Ns[j]
+    ruido = es[0]
+    flag = f'Ulam_approximation_method{method}_mapa{mapa}_Sij_eigenvals_N{Neff}_ruido{ruido}_grilla{cx}N_K{K}_Nc{Nc}'
+    archives = np.load(flag+'.npz')
+    e = archives['e']
+    evec = archives['evec']
+    evals_N[j] = np.abs(e[i])
+    IPR_N[j] = IPR(evec[:,i])
+#%%
+plt.figure()
+plt.title(f'Standard Map. IPR vs N. e={es[ri]:.0e}, K={K}')
+plt.plot(Ns, IPR_N, 'r.')
+# plt.plot(Ns[3], IPR(evec[:,11]), 'r.')
+# plt.vlines(np.arange(evec.shape[1]), 0, IPRs, color='red', alpha=0.8)
+# plt.xticks(np.arange(evec.shape[1]), rotation=45)
+plt.ylabel('IPR')
+plt.xlabel(r'$N$')
+# plt.grid(True)
+# plt.ylim(0,0.005)
+plt.tight_layout()
+plt.show()
+plt.savefig('IPR_N'+flag+'.png', dpi=80)
+#%% IPR localized
+plt.figure()
+plt.title(f'Standard Map. Localized estates. e={es[ri]:.0e}, K={K}')
+plt.plot(Ns, IPR_localized, 'r.')
+plt.hlines(IPR_localized[0], min(Ns), max(Ns))
+# plt.vlines(np.arange(evec.shape[1]), 0, IPRs, color='red', alpha=0.8)
+# plt.xticks(np.arange(evec.shape[1]), rotation=45)
+plt.ylabel('IPR')
+plt.xlabel(r'$N$')
+# plt.grid(True)
+plt.tight_layout()
+plt.show()
+plt.savefig('Localized_evecs_IPR_N'+flag+'.png', dpi=80)
+#%%
+std_N = 1/(2*np.sqrt(Nc))
+
+conv = 2
+# from scipy.stats import std
+plt.figure()
+plt.title(f'Standard Map. Autovalores. e={es[ri]:.0e}, K={K}')
+plt.plot(Ns, evals_N, 'r.')
+# plt.hlines(np.mean(evals_N[conv:]), min(Ns), max(Ns))
+# plt.fill_between(Ns, np.mean(evals_N[conv:])-std_N, np.mean(evals_N[conv:])+std_N, alpha=0.4)
+# plt.vlines(np.arange(evec.shape[1]), 0, IPRs, color='red', alpha=0.8)
+# plt.xticks(np.arange(evec.shape[1]), rotation=45)
+plt.ylabel(r'$\lambda$')
+plt.xlabel(r'$N$')
+# plt.grid(True)
+plt.tight_layout()
+plt.show()
+plt.savefig('eval_IPR_N'+flag+'.png', dpi=80)
+#%% 2d histogram eigenvalues many Ns
+
+theta = np.linspace(0, 2*np.pi, 100)
+   
+r= 1
+
+x = r*np.cos(theta)
+y = r*np.sin(theta)
+
+dom = np.linspace(-1,1,100)
+std_N = 1/(2*np.sqrt(Nc))
+
+plt.figure(figsize=(10,6))
+plt.plot(x,y,color='b', lw=1)
+plt.fill_betweenx(dom, np.mean(evals_N[conv:])-std_N,np.mean(evals_N[conv:])+std_N, alpha=0.8)
+plt.ylabel(r'$\Im(\lambda)$')
+plt.xlabel(r'$\Re(\lambda)$')
+# plt.xlim(0.20,1.1)
+# plt.ylim(-0.25,0.25)
+r= 0.5559
+
+x = r*np.cos(theta)
+y = r*np.sin(theta)
+plt.plot(x,y,color='g', lw=1, alpha=0.7)
+
+k = 45
+
+markers = ['o','v','^','>','<','8','s','p','*']
+
+e_todos = np.zeros((k,len(Ns)))
+
+for j in range(len(Ns)):
+    Neff = Ns[j]
+    ruido = es[0]
+    flag = f'Ulam_approximation_method{method}_mapa{mapa}_Sij_eigenvals_N{Neff}_ruido{ruido}_grilla{cx}N_K{K}_Nc{Nc}'
+    archives = np.load(flag+'.npz')
+    e = archives['e']
+    
+    e_todos[:,j] = np.abs(e)
+    
+    evec = archives['evec']
+    
+    x = np.abs(np.real(e[int(indexes[j])]))
+    y = np.imag(e[int(indexes[j])])
+    
+    print(x,y)
+    
+    plt.plot(x,y,'r.', ms=15, label='NL evec', alpha=0.5)
+    
+    x = np.real(e)
+    
+    y = np.imag(e)
+    plt.plot(x,y,'k.', marker=markers[j%len(markers)], ms=5, label='Ns[j]', alpha=0.45)
+    
+    # print(np.abs(e[9]),np.abs(e[11]))
+# plt.legend(loc='best')    
+plt.tight_layout()
+plt.savefig(f'autovalores_1er_evec_NL_K{K}_Nmin{min(Ns)}_Nmax{max(Ns)}_Npaso{int(np.diff(Ns).mean())}_k{k}.png')
+#%% compraramos autovalores de ambos métodos de Ulam
+metodos = ['Ulam', 'one_trayectory']
+labels = ['común','1trayectory']
+Ncs = [int(1e4), int(2.688e7)]
+ni=0
+Neff = Ns[ni]
+ruido = es[ri]
+
+array = np.zeros((k,len(metodos)))
+
+theta = np.linspace(0, 2*np.pi, 100)
+   
+r= 1
+
+x = r*np.cos(theta)
+y = r*np.sin(theta)
+
+plt.plot(x,y,color='b', lw=1)
+plt.ylabel(r'$\Im(\lambda)$')
+plt.xlabel(r'$\Re(\lambda)$')
+# plt.xlim(0.20,1.1)
+# plt.ylim(-0.25,0.25)
+plt.tight_layout()
+
+r = 0.69
+x = r*np.cos(theta)
+y = r*np.sin(theta)
+
+plt.plot(x,y,color='g', lw=1, alpha=0.7)
+
+for j, (method, Nc) in enumerate(zip(metodos,Ncs)):
+    flag = f'Ulam_approximation_method{method}_mapa{mapa}_Sij_eigenvals_N{Neff}_ruido{ruido}_grilla{cx}N_K{K}_Nc{Nc}'
+    archives = np.load(flag+'.npz')
+    e = archives['e']
+    x = np.real(e)
+    
+    y = np.imag(e)
+    plt.plot(x,y,'.', marker=markers[j%len(markers)], label=labels[j], ms=5, alpha=0.45)
+    
+    array[:,j] = np.abs(e)
+plt.legend(loc='upper right', framealpha=0.4)#, alpha=0.3)
+plt.savefig(f'Comparacion_metodos_Ulam_K{K}_N{Neff}_e{ruido}.png', dpi=80)
+#%%
+# plt.plot(np.abs(array[:,0]),np.abs(array[:,1]), 'r.',ms=4,alpha=0.8)
+#%%    

@@ -231,7 +231,7 @@ opB = 'P'
 operatorss = 'A'+opA+'_B'+opB
 
 Kpaso = 0#1/5
-Ks = [17]#np.arange(15,20.1,Kpaso)
+Ks = [6]#np.arange(15,20.1,Kpaso)
 
 Ns = [15000]#np.arange(5000,20000,00)#[1000,2000,3000,4000,5000]
 
@@ -423,81 +423,96 @@ for n,N in enumerate(Ns):
 # # plt.legend(loc = 'best')
 # plt.savefig('Commutator_vs_t_Ns.png')
 
-# #%% plot O1 vs t para varios N
+#%% plot O1 vs t para varios N
 
-# Ns = [1000,2000,5000,10000]
+Ns = [1000,2000,5000,10000,15000]
 
-# markers = ['o','v','^','>','<','8','s','p','*']
+markers = ['o','v','^','>','<','8','s','p','*']
 
-# fit = np.linspace(0,1,len(Ns))
-# cmap = mpl.cm.get_cmap('viridis')
-# color_gradients = cmap(fit)  
+fit = np.linspace(0,1,len(Ns))
+cmap = mpl.cm.get_cmap('viridis')
+color_gradients = cmap(fit)  
 
-# K = 6#Ks[0]
+K = 6#Ks[0]
 
-# plt.figure(figsize=(12,8))
-# # plt.title(f'A={opA}, B={opB}')
+plt.figure(figsize=(12,8))
+# plt.title(f'A={opA}, B={opB}')
 
-# times = np.arange(0,time_lim)
+time_lim = 51
 
+times = np.arange(0,time_lim)
+x = times#/np.log(N)
 # pendientes = np.zeros((len(Ns)))
 
-# for n,N in enumerate(Ns):
+for n,N in enumerate(Ns):
     
-#     # Define basis size        
-#     N = int(N)
+    # Define basis size        
+    N = int(N)
     
-#     file = flag+f'_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_basis_size{N}_time_lim{time_lim}'+operatorss+modif+'.npz'#+'_evolucion_al_reves' _centro{n0}
-#     archives = np.load(file)
-#     O1_Ks = archives['O1']
-       
-
-#     y = np.abs(O1_Ks[0])/N*4
-
-#     x = times#/np.log(N)
+    if N!=15000:
+            
+        
+        file = flag+f'_Kmin{min(Ks)}_Kmax{max(Ks)}_Kpaso{Kpaso}_basis_size{N}_time_lim{time_lim}'+operatorss+modif+'.npz'#+'_evolucion_al_reves' _centro{n0}
+        archives = np.load(file)
+        O1_Ks = archives['O1']
+           
     
+        y = np.abs(O1_Ks[0])/N*4
+        plt.plot(x[1:]/np.log(N), y[:-1], '.-', ms=8, lw=2.5, label=f'D={N}',  color=color_gradients[n])
     
-#     # oo = O1s[0] - resonancias[k]**(2*x[0])
-    
-#     # if N < 5000:
-#     linf=3+n
-#     lsup=7+n
-#     # else: 
-#     #     linf=6
-#     #     lsup=10
-#     xt = x[linf:lsup].reshape(-1,1)
-#     yt = np.log10(y[linf:lsup])
-    
-#     regresion_lineal = LinearRegression() # creamos una instancia de LinearRegression
-    
-#     regresion_lineal.fit(xt, yt) 
-#     # vemos los parámetros que ha estimado la regresión lineal
-#     m = regresion_lineal.coef_
-#     b = regresion_lineal.intercept_
-    
-#     pend = np.sqrt(10**m[0])
-#     pendientes[n] = pend
-#     print(f'pendiente = {pend}')
+    else:
+        
+        file = f'O1.{N}._std_k6.0.txt'
+        O1_t = np.loadtxt(file)
+        y = np.abs(O1_t[:,1])/N*4
+        time_lim = O1_t[-1,0]+1
+        x = np.arange(0,time_lim)#/np.log(N)    
+        plt.plot(x/np.log(N), y, '.-', ms=8, lw=2.5, label=f'D={N}',  color=color_gradients[n])
     
     
-#     # plt.plot(x[linf:lsup+1]+4, 10**(m*x[linf:lsup+1]+b), '-', color=color_gradients[n], lw=1.5, alpha=0.8)#, label=f'{np.sqrt(10**m[0]):.3f}**(2*t) '
-#     plt.plot(times-np.log(N), y, '.-', ms=8, lw=2.5, label=f'D={N}',  color=color_gradients[n])
-#     # plt.yaxis.set_minor_locator(locmin)
-#     # plt.yaxis.set_minor_locator(mpl.ticker.LogLocator(numticks=9, subs="auto"))
-# plt.ylabel(r'$O_1$')
-# plt.xlabel(r'$t-\log(D)$')
-# # plt.xticks(times[::2])
-# plt.yscale('log')
-# # locmin = matplotlib.ticker.LogLocator(base=10.0, subs=(0.001,0.002,0.003,0.004,0.005,0.006,0.007,0.008,0.009, 0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09, 0.1,0.2,0.4,0.6,0.8,1,2,4,6,8,10 )) 
-# # plt.set_minor_locator(locmin)
-# # plt.set_minor_locator(mpl.ticker.LogLocator(numticks=9, subs="auto"))
-
-# plt.ylim(1e-5,1.3)
+    
+    # oo = O1s[0] - resonancias[k]**(2*x[0])
+    
+    # # if N < 5000:
+    # linf=3+n
+    # lsup=7+n
+    # # else: 
+    # #     linf=6
+    # #     lsup=10
+    # xt = x[linf:lsup].reshape(-1,1)
+    # yt = np.log10(y[linf:lsup])
+    
+    # regresion_lineal = LinearRegression() # creamos una instancia de LinearRegression
+    
+    # regresion_lineal.fit(xt, yt) 
+    # # vemos los parámetros que ha estimado la regresión lineal
+    # m = regresion_lineal.coef_
+    # b = regresion_lineal.intercept_
+    
+    # pend = np.sqrt(10**m[0])
+    # pendientes[n] = pend
+    # print(f'pendiente = {pend}')
+    
+    
+    # plt.plot(x[linf:lsup+1]+4, 10**(m*x[linf:lsup+1]+b), '-', color=color_gradients[n], lw=1.5, alpha=0.8)#, label=f'{np.sqrt(10**m[0]):.3f}**(2*t) '
+    
+    # plt.plot(times/np.log(N), y, '.-', ms=8, lw=2.5, label=f'D={N}',  color=color_gradients[n])
+    # plt.yaxis.set_minor_locator(locmin)
+    # plt.yaxis.set_minor_locator(mpl.ticker.LogLocator(numticks=9, subs="auto"))
+plt.ylabel(r'$O_1$')
+plt.xlabel(r'$t/\ln(D)$')
+plt.xticks(times[0:int(time_lim):2])#, labels=[0,2])
+plt.yscale('log')
+# locmin = matplotlib.ticker.LogLocator(base=10.0, subs=(0.001,0.002,0.003,0.004,0.005,0.006,0.007,0.008,0.009, 0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09, 0.1,0.2,0.4,0.6,0.8,1,2,4,6,8,10 )) 
+# plt.set_minor_locator(locmin)
+# plt.set_minor_locator(mpl.ticker.LogLocator(numticks=9, subs="auto"))
+plt.xlim(0,time_lim/np.log(15000))
+plt.ylim(1e-4,1.2)
 # plt.xlim(-10.01,40)
-# # plt.grid()
-# plt.tight_layout()
-# plt.legend(loc = 'best', framealpha=0.1, fontsize=24)
-# plt.savefig('O1_vs_t_Ns.pdf', dpi=100)
+# plt.grid()
+plt.tight_layout()
+plt.legend(loc = 'best', framealpha=0.1, fontsize=24)
+plt.savefig('O1_vs_t_Ns.pdf', dpi=100)
 
 # # #%% plot pendientes vs N
 # # plt.figure(figsize=(16,8))
